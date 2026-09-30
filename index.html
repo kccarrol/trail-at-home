@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Trail at Home</title>
+<meta name="theme-color" content="#1D2A21">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E6EBDF; --paper:#F4F6EF; --ink:#1D2A21; --muted:#56655A; --line:#C2CCB7;
+  --green:#2E7F43; --blue:#2360A3; --black:#1D2A21; --descent:#6A7E70; --blaze:#D99A00; --err:#B3261E; --hard-edge:#1D2A21;
+  --display:"Barlow Condensed","Roboto Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Barlow","Segoe UI",system-ui,-apple-system,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#111713; --paper:#19211B; --ink:#E2E8DC; --muted:#9BAA9E; --line:#344238;
+    --green:#3E9A57; --blue:#3C7CC8; --black:#050806; --descent:#5F7466; --blaze:#F0B92A; --err:#FF8A80; --hard-edge:#9BAA9E;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111713; --paper:#19211B; --ink:#E2E8DC; --muted:#9BAA9E; --line:#344238;
+  --green:#3E9A57; --blue:#3C7CC8; --black:#050806; --descent:#5F7466; --blaze:#F0B92A; --err:#FF8A80; --hard-edge:#9BAA9E;
+  color-scheme:dark;
+}
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.45;-webkit-tap-highlight-color:transparent}
+.wrap{max-width:560px;margin:0 auto;padding:14px 16px 32px}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--blaze);outline-offset:2px}
+[hidden]{display:none!important}
+
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;min-height:40px}
+header h1{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.1;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.linkbtn{background:none;border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:15px;white-space:nowrap}
+.back{background:none;border:0;padding:6px 8px 6px 0;font-weight:600;font-size:17px;white-space:nowrap}
+
+.intro h2{font-family:var(--display);font-weight:700;font-size:40px;line-height:1.02;margin:10px 0 10px}
+.intro p{color:var(--muted);max-width:60ch;margin:0 0 18px}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:6px}
+.primary{position:relative;display:inline-flex;align-items:center;justify-content:center;background:var(--ink);color:var(--bg);border:0;border-radius:10px;padding:14px 20px;font-weight:600;font-size:17px;cursor:pointer}
+.primary input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.secondary{background:transparent;border:1.5px solid var(--ink);border-radius:10px;padding:12.5px 18px;font-weight:600}
+.err{color:var(--err);font-weight:500;margin:6px 0 10px}
+.err:empty{display:none}
+.count{color:var(--muted);font-size:15px;margin:8px 0 10px}
+
+.routes{list-style:none;margin:0 0 18px;padding:0;display:grid;gap:10px}
+.route{background:var(--paper);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.route .open{display:block;width:100%;text-align:left;background:none;border:0;padding:12px 14px 10px}
+.route b{display:block;font-family:var(--display);font-size:24px;font-weight:600;line-height:1.1;overflow-wrap:anywhere}
+.route .sub{color:var(--muted);font-size:15px}
+.route .prog{display:block;height:5px;background:var(--line);border-radius:3px;margin-top:8px;overflow:hidden}
+.route .prog i{display:block;height:100%;background:var(--blaze)}
+.route .acts{display:flex;border-top:1px solid var(--line)}
+.route .acts button{flex:1;background:none;border:0;padding:10px;font-size:15px;font-weight:500;color:var(--muted)}
+.route .acts button+button{border-left:1px solid var(--line)}
+
+details{border-top:1px solid var(--line);padding:12px 0}
+details.last{border-bottom:1px solid var(--line)}
+summary{font-weight:600;cursor:pointer}
+details ol{padding-left:22px;margin:10px 0 0;color:var(--muted)}
+details li{margin-bottom:6px}
+.legend{display:grid;gap:8px;margin-top:10px;color:var(--muted)}
+.legend div{display:flex;align-items:center;gap:10px}
+.legend svg{width:22px;height:22px;flex:none}
+
+.sign{border-radius:14px;color:#fff;padding:16px 18px 18px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-items:end;transition:background-color .4s;border:1px solid transparent}
+.sign[data-cls="easy"]{background:var(--green)}
+.sign[data-cls="moderate"]{background:var(--blue)}
+.sign[data-cls="hard"],.sign[data-cls="extreme"]{background:var(--black);border-color:var(--line)}
+.sign[data-cls="descent"]{background:var(--descent)}
+.sign .top{grid-column:1/-1;display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:600;font-size:24px;line-height:1}
+.sign .top svg{width:30px;height:30px;flex:none}
+.big{font-family:var(--display);font-weight:700;font-size:clamp(58px,20vw,124px);line-height:.9;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.big small{font-size:.42em;font-weight:600;margin-left:2px}
+.res{text-align:right}
+.lbl{font-size:15px;opacity:.85;display:block;margin-top:4px}
+
+.speed{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:stretch;gap:10px;margin-top:10px;background:var(--paper);border:1.5px solid var(--ink);border-radius:14px;padding:10px}
+.speed button{background:var(--ink);color:var(--bg);border:0;border-radius:10px;width:clamp(62px,18vw,104px);min-height:96px;font-family:var(--display);font-size:56px;font-weight:600;line-height:1;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+.speed button:active{transform:scale(.96)}
+.speed button:disabled{opacity:.25;cursor:default;transform:none}
+.spdval{text-align:center;align-self:center;min-width:0}
+.spdval .big{font-size:clamp(56px,17vw,112px)}
+.spdval .lbl{color:var(--muted);opacity:1}
+.live{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px}
+.live div{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:6px 4px;text-align:center}
+.live b{display:block;font-family:var(--display);font-size:clamp(22px,7.4vw,30px);font-weight:600;line-height:1.05;font-variant-numeric:tabular-nums}
+.live span{font-size:13px;color:var(--muted)}
+.bt{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0}
+.bt button{flex:1 1 0;min-width:0;background:none;border:1.5px solid var(--ink);border-radius:8px;padding:9px 8px;font-size:15px;font-weight:600}
+.btmsg{font-size:14px;color:var(--muted);margin:6px 2px 0}
+
+.profile{margin:14px 0 0;position:relative;background:var(--paper);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.profile svg{display:block;width:100%;height:150px;cursor:crosshair;touch-action:manipulation}
+.p-easy{fill:var(--green);stroke:var(--green)} .p-moderate{fill:var(--blue);stroke:var(--blue)} .p-hard,.p-extreme{fill:var(--black);stroke:var(--hard-edge)} .p-descent{fill:var(--descent);stroke:var(--descent)}
+.profile polygon{stroke-width:1.5px}
+.profile .done{fill:var(--paper);opacity:.6}
+.profile .mark{stroke:var(--blaze);stroke-width:4}
+.hint{font-size:14px;color:var(--muted);margin:6px 2px 14px}
+
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+.stats div{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.stats b{display:block;font-family:var(--display);font-size:28px;font-weight:600;line-height:1.05;font-variant-numeric:tabular-nums}
+.stats span{font-size:14px;color:var(--muted)}
+.controls{margin-bottom:14px}
+.controls .primary{width:100%;font-size:20px;padding:16px}
+.row{display:flex;gap:8px;align-items:end;margin-bottom:14px}
+.row label{flex:1;font-size:15px;color:var(--muted)}
+.row input,.settings input,.settings select{display:block;width:100%;margin-top:4px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--paper);font-size:17px}
+.row button{padding:10px 16px;height:46px;border-radius:8px;border:1.5px solid var(--ink);background:none;font-weight:600}
+.settings .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.settings label{font-size:15px;color:var(--muted)}
+.settings p{font-size:14px;color:var(--muted);margin:10px 0 0}
+.restart{margin-top:12px;background:none;border:1px solid var(--line);border-radius:8px;padding:8px 14px}
+.status{color:var(--muted);font-weight:500;margin:6px 0 4px}
+.status:empty{display:none}
+.banner{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--paper);border:1.5px solid var(--blaze);border-radius:10px;padding:8px 8px 8px 12px;margin-bottom:12px;font-size:15px}
+.banner button{background:var(--ink);color:var(--bg);border:0;border-radius:8px;padding:8px 14px;font-weight:600}
+.spark{display:block;width:100%;height:30px;margin:4px 0 4px}
+.spark polygon{fill:var(--line)}
+.summary{background:var(--paper);border:1.5px solid var(--blaze);border-radius:14px;padding:12px 16px;margin-bottom:10px}
+.summary h2{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.1;margin:0 0 4px}
+.summary p{margin:0}
+.dir{display:inline-block;opacity:0;font-size:12px;vertical-align:1px}
+.res.bump .big{animation:bump 1.2s ease-out}
+.res.bump .dir{animation:fade 2.5s ease-out}
+@keyframes bump{0%{transform:scale(1.18);color:var(--blaze)}100%{transform:scale(1)}}
+@keyframes fade{0%,60%{opacity:1}100%{opacity:0}}
+.res .big{transform-origin:right bottom}
+@media (prefers-reduced-motion:reduce){.sign{transition:none}.speed button:active{transform:none}.res.bump .big{animation:none}.res.bump .dir{animation:none;opacity:1}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Route library -->
+  <section id="lib">
+    <header>
+      <h1>Trail at Home</h1>
+      <button class="linkbtn" id="install" hidden>Install app</button>
+    </header>
+    <div class="banner" id="updBanner" hidden><span>A new version of the app is ready.</span><button id="updBtn">Reload</button></div>
+    <div class="intro" id="intro" hidden>
+      <h2>Ride Strava routes on your Bowflex</h2>
+      <p>Add GPX files of your routes. While you pedal, the app shows how steep the trail is at your spot on the route and which resistance level to set.</p>
+    </div>
+    <div class="actions">
+      <label class="primary">Add GPX routes<input type="file" id="file" multiple accept=".gpx,application/gpx+xml,application/xml,text/xml,application/octet-stream"></label>
+      <button class="secondary" id="sample" hidden>Add a sample route</button>
+    </div>
+    <p class="status" id="status" role="status"></p>
+    <p class="err" id="err" role="alert"></p>
+    <p class="count" id="count"></p>
+    <ul class="routes" id="routes"></ul>
+    <details>
+      <summary>Getting a GPX file from Strava</summary>
+      <ol>
+        <li>Open strava.com in a browser (the export option isn't in the Strava app).</li>
+        <li>For a saved route, open the route and choose Export GPX. For a ride, open the activity, tap the ⋯ menu, and choose Export GPX.</li>
+        <li>Tap Add GPX routes and choose one or more files. Routes are saved on this phone only.</li>
+      </ol>
+    </details>
+    <details class="last">
+      <summary>What the trail signs mean</summary>
+      <div class="legend" id="legend"></div>
+    </details>
+  </section>
+
+  <!-- Ride screen -->
+  <main id="ride" hidden>
+    <header>
+      <button class="back" id="back">‹ Routes</button>
+      <h1 id="title"></h1>
+    </header>
+
+    <section class="summary" id="summary" hidden>
+      <h2>Route finished</h2>
+      <p id="sumText"></p>
+    </section>
+
+    <section class="sign" id="sign" data-cls="easy" aria-label="Current trail conditions">
+      <div class="top"><span id="sym"></span><span id="diff">Easy</span></div>
+      <div>
+        <div class="big"><span id="grade">0.0</span><small>%</small></div>
+        <span class="lbl">Grade</span>
+      </div>
+      <div class="res" id="resBox">
+        <div class="big" id="res">25</div>
+        <span class="lbl">Set resistance <span class="dir" id="resDir" aria-hidden="true"></span></span>
+      </div>
+    </section>
+
+    <section class="speed" aria-label="Your speed">
+      <button id="sDown" aria-label="Slower">−</button>
+      <div class="spdval"><output id="spd" class="big">10.0</output><span class="lbl" id="spdL">mph, match your console</span></div>
+      <button id="sUp" aria-label="Faster">+</button>
+    </section>
+    <div class="live">
+      <div><b id="mTime">0:00</b><span>time</span></div>
+      <div><b id="mPow">–</b><span>watts</span></div>
+      <div><b id="mCad">–</b><span>rpm</span></div>
+      <div><b id="mHr">–</b><span>bpm</span></div>
+    </div>
+    <div class="bt" id="btRow" hidden>
+      <button id="btBike">Connect bike</button>
+      <button id="btHr">Connect heart rate</button>
+    </div>
+    <p class="btmsg" id="btMsg">On a VeloCore, start the third-party app workout from Programs on the bike's screen first, then tap Connect bike.</p>
+
+    <figure class="profile">
+      <svg id="prof" viewBox="0 0 1000 200" preserveAspectRatio="none" role="img" aria-label="Elevation profile of the route"></svg>
+    </figure>
+    <p class="hint">Tap the profile to jump to that spot on the route.</p>
+
+    <div class="stats">
+      <div><b id="sDist">0.00</b><span id="sDistL">mi ridden</span></div>
+      <div><b id="sLeft">0.00</b><span id="sLeftL">mi to go</span></div>
+      <div><b id="sGain">0</b><span id="sGainL">ft climbed</span></div>
+    </div>
+
+    <div class="controls"><button class="primary" id="go">Start riding</button></div>
+
+    <div class="row" id="syncRow">
+      <label>Distance on your console
+        <input id="syncIn" inputmode="decimal" placeholder="e.g. 2.35">
+      </label>
+      <button id="syncBtn">Match</button>
+    </div>
+
+    <details class="settings last">
+      <summary>Resistance and units</summary>
+      <div class="grid">
+        <label>Resistance on flat ground<input type="number" id="setFlat" min="1" max="100" step="1"></label>
+        <label>Levels added per 1% of grade<input type="number" id="setStep" min="0" max="20" step="0.5"></label>
+        <label>Highest level on your bike<input type="number" id="setMax" min="1" max="200" step="1"></label>
+        <label><span id="weightL">Your weight (lb)</span><input type="number" id="setWeight" min="20" max="700" step="1"></label>
+        <label>Units<select id="setUnits"><option value="mi">Miles and feet</option><option value="km">Kilometers and meters</option></select></label>
+      </div>
+      <p>Example: with 25 on flat ground and 4 levels per 1%, a 6% climb suggests 49. On descents resistance drops by half as much. Adjust until climbs feel right for your legs.</p>
+      <p>When the bike shares power, your speed is worked out from your watts, your weight, and the trail's grade, as if riding a mountain bike on dirt. Climbs slow you down, descents carry momentum, and downhill speed tops out at <span id="capNote">25 mph</span>.</p>
+      <button class="restart" id="restart">Restart this route</button>
+    </details>
+  </main>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

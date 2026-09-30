@@ -18,7 +18,7 @@ A small offline app for riding Strava GPX routes on an indoor bike. It stores up
 
 ## Updating the app
 
-If you change any files, open `sw.js` and bump the version (for example `trail-at-home-v6` to `trail-at-home-v7`) before uploading. Phones pick up the new version the next time the app is opened twice.
+If you change any files, open `sw.js` and bump the version (for example `trail-at-home-v8` to `trail-at-home-v9`) before uploading. Phones pick up the new version the next time the app is opened twice.
 
 ## Notes
 

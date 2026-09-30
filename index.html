@@ -15,7 +15,8 @@
 :root{
   --bg:#E6EBDF; --paper:#F4F6EF; --ink:#1D2A21; --muted:#56655A; --line:#C2CCB7;
   --green:#2E7F43; --blue:#2360A3; --black:#1D2A21; --descent:#6A7E70; --blaze:#D99A00; --err:#B3261E; --hard-edge:#1D2A21;
-  --display:"Barlow Condensed","Roboto Condensed","Arial Narrow",system-ui,sans-serif;
+  --g-descent:#3D7BD6; --g-easy:#3F9A52; --g-moderate:#E3B51B; --g-hard:#EC7A22; --g-steep:#D43A2F; --done:rgba(244,246,239,.62);
+  --display:"Barlow Condensed","Roboto Condensed","Arial Narrow",sans-serif-condensed,system-ui,sans-serif;
   --body:"Barlow","Segoe UI",system-ui,-apple-system,sans-serif;
   color-scheme:light;
 }
@@ -23,12 +24,14 @@
   :root:not([data-theme="light"]){
     --bg:#111713; --paper:#19211B; --ink:#E2E8DC; --muted:#9BAA9E; --line:#344238;
     --green:#3E9A57; --blue:#3C7CC8; --black:#050806; --descent:#5F7466; --blaze:#F0B92A; --err:#FF8A80; --hard-edge:#9BAA9E;
+    --g-descent:#4E8FEA; --g-easy:#45A85B; --g-moderate:#D9B02A; --g-hard:#E07D30; --g-steep:#DB4B40; --done:rgba(25,33,27,.62);
     color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
   --bg:#111713; --paper:#19211B; --ink:#E2E8DC; --muted:#9BAA9E; --line:#344238;
   --green:#3E9A57; --blue:#3C7CC8; --black:#050806; --descent:#5F7466; --blaze:#F0B92A; --err:#FF8A80; --hard-edge:#9BAA9E;
+  --g-descent:#4E8FEA; --g-easy:#45A85B; --g-moderate:#D9B02A; --g-hard:#E07D30; --g-steep:#DB4B40; --done:rgba(25,33,27,.62);
   color-scheme:dark;
 }
 :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -103,12 +106,42 @@ details li{margin-bottom:6px}
 .bt button{flex:1 1 0;min-width:0;background:none;border:1.5px solid var(--ink);border-radius:8px;padding:9px 8px;font-size:15px;font-weight:600}
 .btmsg{font-size:14px;color:var(--muted);margin:6px 2px 0}
 
-.profile{margin:14px 0 0;position:relative;background:var(--paper);border:1px solid var(--line);border-radius:10px;overflow:hidden}
-.profile svg{display:block;width:100%;height:150px;cursor:crosshair;touch-action:manipulation}
-.p-easy{fill:var(--green);stroke:var(--green)} .p-moderate{fill:var(--blue);stroke:var(--blue)} .p-hard,.p-extreme{fill:var(--black);stroke:var(--hard-edge)} .p-descent{fill:var(--descent);stroke:var(--descent)}
-.profile polygon{stroke-width:1.5px}
-.profile .done{fill:var(--paper);opacity:.6}
-.profile .mark{stroke:var(--blaze);stroke-width:4}
+.profiles{margin:14px 0 0;background:var(--paper);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.ahead{position:relative;height:140px}
+.ahead canvas{display:block;width:100%;height:100%}
+.strip{display:block;width:100%;height:40px;border-top:1px solid var(--line);cursor:crosshair;touch-action:manipulation}
+.readout{position:absolute;top:4px;left:4px;font-size:12px;line-height:14px;color:var(--ink);background:var(--paper);border-radius:6px;padding:2px 6px 3px;pointer-events:none;font-variant-numeric:tabular-nums;white-space:nowrap}
+.readout b{display:block;font-family:var(--display);font-size:18px;line-height:19px;font-weight:600}
+.callout{position:absolute;top:4px;right:5px;max-width:calc(100% - 76px);text-align:right;background:var(--ink);color:var(--bg);border:0;border-radius:10px;padding:3px 9px;font-size:12.5px;font-weight:600;line-height:14px}
+.noele{position:absolute;inset:auto 0 42% 0;margin:0;text-align:center;font-size:14px;color:var(--muted);pointer-events:none}
+.g-descent{fill:var(--g-descent)} .g-easy{fill:var(--g-easy)} .g-moderate{fill:var(--g-moderate)} .g-hard{fill:var(--g-hard)} .g-steep{fill:var(--g-steep)}
+.sumacts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.sumacts button{flex:1 1 140px;padding:11px 14px}
+.upmsg{font-size:14px;color:var(--muted);margin:8px 0 0}
+.upmsg:empty{display:none}
+.upmsg a,.upst a{color:var(--ink);font-weight:600}
+.hist{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:8px}
+.ride{background:var(--paper);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.ride .rtop{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:9px 12px 0}
+.ride .rtop b{font-family:var(--display);font-size:20px;font-weight:600;line-height:1.1;overflow-wrap:anywhere}
+.ride .rtop span{font-size:13px;color:var(--muted);white-space:nowrap}
+.ride .sub{display:block;padding:2px 12px 0;font-size:14px;color:var(--muted)}
+.ride .upst{display:block;padding:2px 12px 8px;font-size:14px}
+.ride .upst:empty{padding-bottom:6px}
+.ride .acts{display:flex;border-top:1px solid var(--line)}
+.ride .acts button{flex:1;background:none;border:0;padding:9px 6px;font-size:14px;font-weight:500;color:var(--muted)}
+.ride .acts button+button{border-left:1px solid var(--line)}
+.ride .acts button:disabled{opacity:.45}
+.strava p{margin:8px 0}
+.strava .small{font-size:14px;color:var(--muted)}
+.strava label{display:block;font-size:15px;color:var(--muted);margin-top:10px}
+.strava input[type=text],.strava input[type=url]{display:block;box-sizing:border-box;width:100%;margin-top:4px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--paper);font-size:16px}
+.strava .check{display:flex;gap:10px;align-items:flex-start;color:var(--ink)}
+.strava .check input{width:20px;height:20px;margin:2px 0 0;flex:none;accent-color:var(--blaze)}
+.strava details{border:0;padding:6px 0 0}
+.strava .row2{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.pv{display:block;width:100%;height:36px;margin:6px 0 4px}
+.pv-line{fill:none;stroke:var(--ink);stroke-width:1.2px;vector-effect:non-scaling-stroke;stroke-linejoin:round}
 .hint{font-size:14px;color:var(--muted);margin:6px 2px 14px}
 
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
@@ -121,7 +154,9 @@ details li{margin-bottom:6px}
 .row label{flex:1;font-size:15px;color:var(--muted)}
 .row input,.settings input,.settings select{display:block;width:100%;margin-top:4px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--paper);font-size:17px}
 .row button{padding:10px 16px;height:46px;border-radius:8px;border:1.5px solid var(--ink);background:none;font-weight:600}
-.settings .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.settings .grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin-top:12px}
+.settings .grid label{min-width:0}
+.settings input,.settings select,.row input{box-sizing:border-box}
 .settings label{font-size:15px;color:var(--muted)}
 .settings p{font-size:14px;color:var(--muted);margin:10px 0 0}
 .restart{margin-top:12px;background:none;border:1px solid var(--line);border-radius:8px;padding:8px 14px}
@@ -129,8 +164,11 @@ details li{margin-bottom:6px}
 .status:empty{display:none}
 .banner{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--paper);border:1.5px solid var(--blaze);border-radius:10px;padding:8px 8px 8px 12px;margin-bottom:12px;font-size:15px}
 .banner button{background:var(--ink);color:var(--bg);border:0;border-radius:8px;padding:8px 14px;font-weight:600}
-.spark{display:block;width:100%;height:30px;margin:4px 0 4px}
-.spark polygon{fill:var(--line)}
+.notice{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 12px;font-size:15px;color:var(--muted)}
+.banner.lost{margin:10px 0 0}
+.apnote{background:var(--paper);border:1.5px solid var(--blaze);border-radius:10px;padding:8px 12px;margin:0 0 14px;font-size:15px;font-weight:500;text-align:center}
+.settings .wide{grid-column:1/-1}
+.settings input[type=range]{padding:0;border:0;background:none;accent-color:var(--blaze);height:36px}
 .summary{background:var(--paper);border:1.5px solid var(--blaze);border-radius:14px;padding:12px 16px;margin-bottom:10px}
 .summary h2{font-family:var(--display);font-weight:700;font-size:26px;line-height:1.1;margin:0 0 4px}
 .summary p{margin:0}
@@ -164,7 +202,31 @@ details li{margin-bottom:6px}
     <p class="status" id="status" role="status"></p>
     <p class="err" id="err" role="alert"></p>
     <p class="count" id="count"></p>
+    <p class="notice" id="legacy" hidden><span id="legacyText"></span></p>
     <ul class="routes" id="routes"></ul>
+    <details id="histBox">
+      <summary>Ride history <span id="histCount"></span></summary>
+      <p class="upmsg" id="histEmpty">Rides you finish or leave part-way show up here.</p>
+      <p class="upmsg" id="histMsg" role="status"></p>
+      <ul class="hist" id="hist"></ul>
+    </details>
+    <details class="strava" id="stravaBox">
+      <summary>Strava</summary>
+      <p id="stravaState">Not set up.</p>
+      <div class="row2">
+        <button class="primary" id="stravaConnect" hidden>Connect Strava</button>
+        <button class="secondary" id="stravaOff" hidden>Disconnect</button>
+      </div>
+      <p class="upmsg" id="stravaMsg" role="status"></p>
+      <label class="check"><input type="checkbox" id="setPos"><span>Include map positions in rides sent to Strava</span></label>
+      <p class="small">With positions, the ride appears on the real route's map on Strava. It's marked as a virtual ride, but people may still take it for an outdoor ride. Untick this to send only distance, elevation, speed, power, cadence and heart rate.</p>
+      <details id="setupBox">
+        <summary>One-time setup</summary>
+        <p class="small">Uploading in one tap needs a free Strava API app and a small helper that keeps its secret safe. The steps are in the README under "Sending rides to Strava". Without them, you can still download rides as TCX files.</p>
+        <label>Strava client ID<input type="text" id="setClientId" inputmode="numeric" autocomplete="off" placeholder="e.g. 123456"></label>
+        <label>Helper address<input type="url" id="setHelper" autocomplete="off" placeholder="https://trail-at-home-strava.yourname.workers.dev"></label>
+      </details>
+    </details>
     <details>
       <summary>Getting a GPX file from Strava</summary>
       <ol>
@@ -189,6 +251,11 @@ details li{margin-bottom:6px}
     <section class="summary" id="summary" hidden>
       <h2>Route finished</h2>
       <p id="sumText"></p>
+      <div class="sumacts" id="sumActs" hidden>
+        <button class="primary" id="sumUp" hidden>Upload to Strava</button>
+        <button class="secondary" id="sumTcx">Download TCX</button>
+      </div>
+      <p class="upmsg" id="sumMsg" role="status"></p>
     </section>
 
     <section class="sign" id="sign" data-cls="easy" aria-label="Current trail conditions">
@@ -218,12 +285,19 @@ details li{margin-bottom:6px}
       <button id="btBike">Connect bike</button>
       <button id="btHr">Connect heart rate</button>
     </div>
+    <div class="banner lost" id="lostBanner" role="status" hidden><span id="lostText">Bike disconnected. Reconnecting…</span><button id="lostManual">Use + and −</button></div>
     <p class="btmsg" id="btMsg">On a VeloCore, start the third-party app workout from Programs on the bike's screen first, then tap Connect bike.</p>
 
-    <figure class="profile">
-      <svg id="prof" viewBox="0 0 1000 200" preserveAspectRatio="none" role="img" aria-label="Elevation profile of the route"></svg>
-    </figure>
-    <p class="hint">Tap the profile to jump to that spot on the route.</p>
+    <section class="profiles" id="profiles" aria-label="Elevation profile">
+      <div class="ahead">
+        <canvas id="ahead" role="img" aria-label="Elevation of the route just ahead"></canvas>
+        <div class="readout"><b id="aGrade">0.0%</b><span id="aEle"></span></div>
+        <p class="noele" id="noEle" hidden>No elevation data</p>
+        <button class="callout" id="callout" aria-label="Upcoming climb. Tap to hide." hidden></button>
+      </div>
+      <canvas class="strip" id="strip" role="img" aria-label="The whole route. Tap to jump to that spot."></canvas>
+    </section>
+    <p class="hint">Tap the lower strip to jump to that spot on the route. Tap a climb note to hide it.</p>
 
     <div class="stats">
       <div><b id="sDist">0.00</b><span id="sDistL">mi ridden</span></div>
@@ -232,6 +306,7 @@ details li{margin-bottom:6px}
     </div>
 
     <div class="controls"><button class="primary" id="go">Start riding</button></div>
+    <p class="apnote" id="apNote" role="status" hidden>Auto-paused. Start pedaling to carry on.</p>
 
     <div class="row" id="syncRow">
       <label>Distance on your console
@@ -241,20 +316,33 @@ details li{margin-bottom:6px}
     </div>
 
     <details class="settings last">
-      <summary>Resistance and units</summary>
+      <summary>Settings</summary>
       <div class="grid">
+        <label class="wide">Hill difficulty: <b id="diffVal">100%</b>
+          <input type="range" id="setDiff" min="0" max="100" step="5" aria-describedby="diffHelp">
+        </label>
         <label>Resistance on flat ground<input type="number" id="setFlat" min="1" max="100" step="1"></label>
         <label>Levels added per 1% of grade<input type="number" id="setStep" min="0" max="20" step="0.5"></label>
         <label>Highest level on your bike<input type="number" id="setMax" min="1" max="200" step="1"></label>
         <label><span id="weightL">Your weight (lb)</span><input type="number" id="setWeight" min="20" max="700" step="1"></label>
+        <label>Profile shows ahead<select id="setAhead"></select></label>
         <label>Units<select id="setUnits"><option value="mi">Miles and feet</option><option value="km">Kilometers and meters</option></select></label>
       </div>
+      <p id="diffHelp">Hill difficulty sets how much of each hill you feel. At 100% climbs and descents are true to the route; at 50% they're half as steep, in both your speed and the suggested resistance; at 0% everything rides flat.</p>
       <p>Example: with 25 on flat ground and 4 levels per 1%, a 6% climb suggests 49. On descents resistance drops by half as much. Adjust until climbs feel right for your legs.</p>
-      <p>When the bike shares power, your speed is worked out from your watts, your weight, and the trail's grade, as if riding a mountain bike on dirt. Climbs slow you down, descents carry momentum, and downhill speed tops out at <span id="capNote">25 mph</span>.</p>
+      <p>When the bike shares power, your speed is worked out from your watts, your weight (plus 13 kg of bike), and the trail's grade, as if riding a mountain bike on hardpacked dirt. Climbs slow you down, descents carry momentum, and speed tops out at <span id="capNote">56 mph</span>. If you stop pedaling for 5 seconds, the ride clock pauses until you start again.</p>
       <button class="restart" id="restart">Restart this route</button>
     </details>
   </main>
 </div>
+<script src="climbs.js"></script>
+<script src="profileCanvas.js"></script>
+<script src="routePrep.js"></script>
+<script src="speedModel.js"></script>
+<script src="rideSession.js"></script>
+<script src="tcx.js"></script>
+<script src="rideStore.js"></script>
+<script src="strava.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

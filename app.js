@@ -10,7 +10,7 @@ const $ = id => document.getElementById(id);
 const TAH = window.TAH;
 
 // Must match <meta name="app-version"> in index.html (and is bumped with sw.js's cache version).
-const APP_VERSION = "12";
+const APP_VERSION = "13";
 {
   const page = document.querySelector('meta[name="app-version"]');
   if (!page || page.content !== APP_VERSION) throw new Error(`index.html and app.js are from different versions (${page ? page.content : "older"} and ${APP_VERSION}). Upload both from the same zip.`);
@@ -1174,7 +1174,7 @@ $("tabbar").addEventListener("click", e => {
 // orange trail climbing it to a dot where you stopped (no trail if you haven't started it).
 function heroSvg(pv, frac) {
   if (!pv || pv.e.length < 2) return "";
-  const r = TAH.previewRoute(pv), W = 340, H = 118, TOP = 14, p = TAH.columns(r, 0, r.totalDistM, pv.e.length);
+  const r = TAH.previewRoute(pv), W = 120, H = 64, TOP = 8, p = TAH.columns(r, 0, r.totalDistM, pv.e.length);
   const lo = Math.min(...pv.e), hi = Math.max(Math.max(...pv.e), lo + 40);
   const X = x => x / pv.e.length * W, Y = e => TOP + (1 - (e - lo) / (hi - lo)) * (H - TOP - 6);
   let h = `<defs><linearGradient id="hfade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#0F1612" stop-opacity=".55"/></linearGradient></defs>`;
@@ -1188,20 +1188,20 @@ function heroSvg(pv, frac) {
   }
   h += `<rect width="${W}" height="${H}" fill="url(#hfade)"/>`;
   const ridge = p.x.map((x, i) => `${X(x).toFixed(1)},${Y(p.e[i]).toFixed(1)}`);
-  h += `<polyline points="${ridge.join(" ")}" fill="none" stroke="#EEF2E8" stroke-width="1.5" stroke-linejoin="round" opacity=".8"/>`;
+  h += `<polyline points="${ridge.join(" ")}" fill="none" stroke="#EEF2E8" stroke-width="1" stroke-linejoin="round" opacity=".8"/>`;
   if (frac != null) {
     const end = frac * W, done = [];
     for (let i = 0; i < p.x.length && X(p.x[i]) <= end; i++) done.push(ridge[i]);
     const ex = Math.max(0, Math.min(W, end)), ey = Y(TAH.valueAt(r, r.eleM, frac * r.totalDistM));
     done.push(`${ex.toFixed(1)},${ey.toFixed(1)}`);
-    h += `<polyline points="${done.join(" ")}" fill="none" stroke="#0F1612" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/>`;
-    h += `<polyline points="${done.join(" ")}" fill="none" stroke="#EC7A22" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>`;
-    h += `<circle cx="${ex.toFixed(1)}" cy="${ey.toFixed(1)}" r="8" fill="#EC7A22" stroke="#0F1612" stroke-width="3"/>`;
+    h += `<polyline points="${done.join(" ")}" fill="none" stroke="#0F1612" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>`;
+    h += `<polyline points="${done.join(" ")}" fill="none" stroke="#EC7A22" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>`;
+    h += `<circle cx="${ex.toFixed(1)}" cy="${ey.toFixed(1)}" r="4.5" fill="#EC7A22" stroke="#0F1612" stroke-width="2"/>`;
   }
-  return `<svg class="art" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${h}</svg>`;
+  return `<svg class="thumb" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${h}</svg>`;
 }
 // Mountains and a trail, like the app icon, for the welcome hero before any routes exist.
-const WELCOME_ART = `<svg class="art" viewBox="0 0 340 118" aria-hidden="true"><polygon points="0,118 70,46 104,74 168,16 250,96 300,70 340,92 340,118" fill="#3D7BD6"/><polygon points="0,118 60,90 120,104 190,72 250,96 300,84 340,96 340,118" fill="#3F9A52"/><polyline points="10,112 70,46 104,74 136,45" fill="none" stroke="#0F1612" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/><polyline points="10,112 70,46 104,74 136,45" fill="none" stroke="#EC7A22" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/><circle cx="136" cy="45" r="8" fill="#EC7A22" stroke="#0F1612" stroke-width="3"/></svg>`;
+const WELCOME_ART = `<svg class="thumb" viewBox="0 0 340 118" preserveAspectRatio="xMidYMax slice" aria-hidden="true"><polygon points="0,118 70,46 104,74 168,16 250,96 300,70 340,92 340,118" fill="#3D7BD6"/><polygon points="0,118 60,90 120,104 190,72 250,96 300,84 340,96 340,118" fill="#3F9A52"/><polyline points="10,112 70,46 104,74 136,45" fill="none" stroke="#0F1612" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/><polyline points="10,112 70,46 104,74 136,45" fill="none" stroke="#EC7A22" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/><circle cx="136" cy="45" r="8" fill="#EC7A22" stroke="#0F1612" stroke-width="3"/></svg>`;
 const BIKE_ICON = `<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17" r="3.5"/><circle cx="18.5" cy="17" r="3.5"/><path d="M5.5 17 10 9h6l2.5 8M10 9l3 8h-2M15 6h3"/></svg>`;
 const fact = (value, label) => { const [n, u] = String(value).split(" "); return `<div><b>${esc(n)}${u ? `<small style="font-size:.55em;margin-left:2px">${esc(u)}</small>` : ""}</b><span>${esc(label)}</span></div>`; };
 
@@ -1211,15 +1211,15 @@ async function drawHome() {
   const next = going || metas.slice().sort((a, b) => recency(b) - recency(a))[0];
   const hero = $("hero");
   if (!next) {
-    hero.innerHTML = `<p class="kicker">Welcome</p><h2>Ride real hills at home</h2>${WELCOME_ART}
-      <p class="small" style="margin:12px 0 14px">Add a GPX file of a Strava route and ride it on your Bowflex, with the grade, resistance and climbs as you go.</p>
+    hero.innerHTML = `<div class="hero-top"><div><p class="kicker">Welcome</p><h2>Ride real hills at home</h2></div>${WELCOME_ART}</div>
+      <p class="small" style="margin:10px 0 12px">Add a GPX file of a Strava route and ride it on your Bowflex, with the grade, resistance and climbs as you go.</p>
       <button class="primary" data-hero="add">Add your first route</button>`;
   } else {
     const pct = Math.round(next.pos / next.total * 100);
     const facts = going ? fact(fmtDShort(going.pos), "ridden") + fact(fmtDShort(going.total - going.pos), "to go") + fact(`${pct}%`, "complete")
       : fact(fmtDShort(next.total), "distance") + (next.hasEle === false ? "" : fact(`${fmtE(next.gain)} ${eUnit()}`, "climbing"));
-    hero.innerHTML = `<p class="kicker">${going ? "Continue where you left off" : "Ready when you are"}</p>
-      <h2>${esc(next.name)}</h2>${heroSvg(next.preview, going ? going.pos / going.total : null)}
+    hero.innerHTML = `<div class="hero-top"><div><p class="kicker">${going ? "Continue your ride" : "Ready when you are"}</p>
+      <h2>${esc(next.name)}</h2></div>${heroSvg(next.preview, going ? going.pos / going.total : null)}</div>
       <div class="facts">${facts}</div>
       <button class="primary" data-hero="ride" data-id="${esc(next.id)}">${BIKE_ICON}${going ? "Continue ride" : "Ride this route"}</button>
       <button class="alt" data-hero="pick">Choose a different route</button>`;

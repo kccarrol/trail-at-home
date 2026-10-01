@@ -20,13 +20,13 @@ A small offline app for riding Strava GPX routes on an indoor bike. It stores up
 
 Always upload **every** file from the zip together, even ones that didn't change. Then open the app, wait a few seconds, close it fully and open it again.
 
-If you change files yourself, bump the version number in all three places so they match: the cache name in `sw.js` (for example `trail-at-home-v11` to `trail-at-home-v12`), `<meta name="app-version">` in `index.html`, and `APP_VERSION` in `app.js`. If the app finds files from different versions, it fetches a fresh copy automatically; if that doesn't fix it, it shows what went wrong and a "Repair and reload" button. Repair never touches your routes, rides or settings.
+If you change files yourself, bump the version number in all three places so they match: the cache name in `sw.js` (for example `trail-at-home-v12` to `trail-at-home-v13`), `<meta name="app-version">` in `index.html`, and `APP_VERSION` in `app.js`. If the app finds files from different versions, it fetches a fresh copy automatically; if that doesn't fix it, it shows what went wrong and a "Repair and reload" button. Repair never touches your routes, rides or settings.
 
 ## Using it
 
-The Home page has five buttons:
+Home features your next ride: the route you're part-way through (or the one you used last), drawn as its elevation profile with your progress, and a button to carry on. A tab bar along the bottom (Home, Routes, Ride, History, Settings) is on every main page. Home's tiles and the tabs lead to:
 
-- **Start a ride:** choose a route, connect the bike (optional), then Start ride. If you've ridden part of a route, a Continue card on Home jumps straight to it, and you can pick whether to carry on or start from the beginning.
+- **Start a ride:** choose a route, connect the bike (optional), then Start ride. If you've ridden part of a route, Home's Continue ride button jumps straight to it, and you can pick whether to carry on or start from the beginning.
 - **Browse routes:** add GPX files, search, filter by progress and length, sort, and Ride, Rename, Start over or Delete a route.
 - **Ride history:** every ride, with search, filters (when, finished or part-way, on Strava or not), sorting and totals. Download a ride as a TCX file or upload it to Strava.
 - **Info:** how to get GPX files, what the trail signs mean, connecting the VeloCore, how speed and resistance work, and Strava.

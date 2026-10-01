@@ -10,7 +10,7 @@ const $ = id => document.getElementById(id);
 const TAH = window.TAH;
 
 // Must match <meta name="app-version"> in index.html (and is bumped with sw.js's cache version).
-const APP_VERSION = "11";
+const APP_VERSION = "12";
 {
   const page = document.querySelector('meta[name="app-version"]');
   if (!page || page.content !== APP_VERSION) throw new Error(`index.html and app.js are from different versions (${page ? page.content : "older"} and ${APP_VERSION}). Upload both from the same zip.`);
@@ -225,8 +225,9 @@ function previewSvg(pv) {
 function routeCard(m, mode) {
   const finished = m.pos >= m.total - 5;
   const pct = m.pos > 50 ? Math.min(100, m.pos / m.total * 100) : 0;
-  const where = finished ? " Finished." : m.pos > 50 ? ` Stopped at ${fmtDShort(m.pos)}.` : "";
-  const climb = m.hasEle === false ? "Flat (the GPX had no elevation)." : `${fmtE(m.gain)} ${eUnit()} of climbing.`;
+  const where = finished ? "Finished." : m.pos > 50 ? `Stopped at ${fmtDShort(m.pos)}.` : "";
+  const [dn, du] = fmtDShort(m.total).split(" ");
+  const climb = m.hasEle === false ? `<span>flat (no elevation in the GPX)</span>` : `<span><em>${fmtE(m.gain)}</em>${eUnit()} climbing</span>`;
   const id = esc(m.id);
   const acts = mode !== "manage" ? "" : `<div class="acts">
         <button data-act="ride" data-id="${id}">Ride</button><button data-act="rename" data-id="${id}">Rename</button>
@@ -234,7 +235,8 @@ function routeCard(m, mode) {
   return `<li class="route">
       <button class="open" data-id="${id}" ${mode === "static" ? "disabled" : ""}>
         <b>${esc(m.name)}</b>${previewSvg(m.preview)}
-        <span class="sub">${fmtDShort(m.total)}, ${climb}${where}</span>
+        <span class="stats2"><span><em>${esc(dn)}</em>${esc(du || "")}</span>${climb}</span>
+        ${where ? `<span class="sub">${where}</span>` : ""}
         ${pct > 0 ? `<span class="prog"><i style="width:${pct.toFixed(1)}%"></i></span>` : ""}
       </button>${acts}
     </li>`;
@@ -417,7 +419,7 @@ const P = {
   theme: null, yr: null, easing: false, lastT: 0, raf: 0, dismissed: new Set()
 };
 const THEME_VARS = { descent: "--g-descent", easy: "--g-easy", moderate: "--g-moderate", hard: "--g-hard", steep: "--g-steep",
-  line: "--ink", text: "--muted", marker: "--blaze", bg: "--paper", done: "--done" };
+  line: "--ink", text: "--muted", marker: "--marker", bg: "--paper", done: "--done" };
 function readTheme() {
   const cs = getComputedStyle(document.documentElement), t = {};
   for (const k in THEME_VARS) t[k] = cs.getPropertyValue(THEME_VARS[k]).trim();
@@ -1014,10 +1016,17 @@ async function drawHistory() {
     const u = r.upload || {}, busy = U.live.has(r.id) || u.status === "pending" || u.status === "processing";
     const up = !U.connected || u.status === "uploaded" ? "" :
       `<button data-act="up" data-id="${esc(r.id)}"${busy ? " disabled" : ""}>${u.status === "failed" ? "Try Strava again" : "Upload to Strava"}</button>`;
+    // Date block on the left, like a fixtures list: month, day, weekday.
+    const d = new Date(r.startedAt);
+    const dateBlock = `<div class="date" aria-hidden="true"><span>${esc(d.toLocaleDateString(undefined, { month: "short" }))}</span><b>${d.getDate()}</b><span>${esc(d.toLocaleDateString(undefined, { weekday: "short" }))}</span></div>`;
     return `<li class="ride">
-      <div class="rtop"><b>${esc(r.routeName || "Ride")}</b><span>${esc(when(r.startedAt))}</span></div>
-      <span class="sub">${esc(rideFacts(r))}</span>
-      <span class="upst" data-st="${esc(r.id)}">${uploadLine(r)}</span>
+      ${dateBlock}
+      <div class="rbody">
+        <div class="rtop"><b>${esc(r.routeName || "Ride")}</b><span>${esc(d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }))}</span></div>
+        <span class="sub">${esc(rideFacts(r))}</span>
+        <span class="upst" data-st="${esc(r.id)}">${uploadLine(r)}</span>
+        <span class="sr-only">${esc(when(r.startedAt))}</span>
+      </div>
       <div class="acts"><button data-act="tcx" data-id="${esc(r.id)}">Download TCX</button>${up}<button data-act="del" data-id="${esc(r.id)}">Delete</button></div>
     </li>`;
   }).join("");
@@ -1097,6 +1106,9 @@ function showPage(name, scrollY = 0, focus = true) {
   if (R.meta && name !== "ride" && name !== "settings") closeRide();
   page = name;
   for (const p of PAGES) $("scr-" + p).hidden = p !== name;
+  const tabs = !["start", "ride"].includes(name) && !(name === "settings" && R.meta);   // mid-ride, Settings only goes back to the ride
+  $("tabbar").hidden = !tabs; document.body.classList.toggle("has-tabbar", tabs);
+  document.querySelectorAll("[data-tab]").forEach(t => { if (t.dataset.tab === name) t.setAttribute("aria-current", "page"); else t.removeAttribute("aria-current"); });
   document.title = name === "home" ? "Trail at Home" : `${name === "ride" && R.meta ? R.meta.name : TITLES[name]} · Trail at Home`;
   window.scrollTo(0, scrollY);
   // Some pages fill in after reading storage, so restore the scroll again once they're drawn.
@@ -1137,7 +1149,7 @@ const ENTER = {
   info: () => {},
   settings() {
     showSettings(); drawStrava();
-    $("scr-settings").querySelector("[data-back]").textContent = R.meta ? "‹ Back to ride" : "‹ Home";
+    $("scr-settings").querySelector("[data-back]").hidden = !R.meta;   // "Back to ride" only mid-ride
     rides.list().then(l => {
       const n = l.filter(r => r.sampleCount >= MIN_HISTORY_SAMPLES).length;
       $("storageInfo").textContent = `${metas.length} of ${MAX_ROUTES} routes and ${n} ride${n === 1 ? "" : "s"} are stored on this phone only.`;
@@ -1146,16 +1158,71 @@ const ENTER = {
   ride() { update(); layoutProfiles(); if (!$("summary").hidden) drawSummaryUpload(); }
 };
 const refreshPage = () => ENTER[page]();
+// Tabs swap pages rather than stacking them, so the phone's back gesture from any tab goes Home.
+const TAB_PAGES = ["home", "routes", "history", "settings", "info"];
+$("tabbar").addEventListener("click", e => {
+  const t = e.target.closest("[data-tab]"); if (!t) return;
+  const name = t.dataset.tab;
+  if (name === "start") START.route = null;
+  if (name === "home") { goHome(); return; }
+  if (name === page && name !== "start") { window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+  go(name, { replace: page !== "home" && TAB_PAGES.includes(page) && name !== "start" });
+});
 
 /* --- Home --- */
+// The hero's art: the route's own elevation profile, coloured by grade, with the app icon's
+// orange trail climbing it to a dot where you stopped (no trail if you haven't started it).
+function heroSvg(pv, frac) {
+  if (!pv || pv.e.length < 2) return "";
+  const r = TAH.previewRoute(pv), W = 340, H = 118, TOP = 14, p = TAH.columns(r, 0, r.totalDistM, pv.e.length);
+  const lo = Math.min(...pv.e), hi = Math.max(Math.max(...pv.e), lo + 40);
+  const X = x => x / pv.e.length * W, Y = e => TOP + (1 - (e - lo) / (hi - lo)) * (H - TOP - 6);
+  let h = `<defs><linearGradient id="hfade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#0F1612" stop-opacity=".55"/></linearGradient></defs>`;
+  let k = 0;
+  while (k < p.g.length) {
+    const band = TAH.gradeBand(p.g[k]), start = k;
+    while (k < p.g.length && TAH.gradeBand(p.g[k]) === band) k++;
+    let pts = `${X(p.x[start]).toFixed(1)},${H}`;
+    for (let i = start; i <= k; i++) pts += ` ${X(p.x[i]).toFixed(1)},${Y(p.e[i]).toFixed(1)}`;
+    h += `<polygon class="g-${band}" opacity=".9" points="${pts} ${X(p.x[k]).toFixed(1)},${H}"/>`;
+  }
+  h += `<rect width="${W}" height="${H}" fill="url(#hfade)"/>`;
+  const ridge = p.x.map((x, i) => `${X(x).toFixed(1)},${Y(p.e[i]).toFixed(1)}`);
+  h += `<polyline points="${ridge.join(" ")}" fill="none" stroke="#EEF2E8" stroke-width="1.5" stroke-linejoin="round" opacity=".8"/>`;
+  if (frac != null) {
+    const end = frac * W, done = [];
+    for (let i = 0; i < p.x.length && X(p.x[i]) <= end; i++) done.push(ridge[i]);
+    const ex = Math.max(0, Math.min(W, end)), ey = Y(TAH.valueAt(r, r.eleM, frac * r.totalDistM));
+    done.push(`${ex.toFixed(1)},${ey.toFixed(1)}`);
+    h += `<polyline points="${done.join(" ")}" fill="none" stroke="#0F1612" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/>`;
+    h += `<polyline points="${done.join(" ")}" fill="none" stroke="#EC7A22" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>`;
+    h += `<circle cx="${ex.toFixed(1)}" cy="${ey.toFixed(1)}" r="8" fill="#EC7A22" stroke="#0F1612" stroke-width="3"/>`;
+  }
+  return `<svg class="art" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${h}</svg>`;
+}
+// Mountains and a trail, like the app icon, for the welcome hero before any routes exist.
+const WELCOME_ART = `<svg class="art" viewBox="0 0 340 118" aria-hidden="true"><polygon points="0,118 70,46 104,74 168,16 250,96 300,70 340,92 340,118" fill="#3D7BD6"/><polygon points="0,118 60,90 120,104 190,72 250,96 300,84 340,96 340,118" fill="#3F9A52"/><polyline points="10,112 70,46 104,74 136,45" fill="none" stroke="#0F1612" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/><polyline points="10,112 70,46 104,74 136,45" fill="none" stroke="#EC7A22" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/><circle cx="136" cy="45" r="8" fill="#EC7A22" stroke="#0F1612" stroke-width="3"/></svg>`;
+const BIKE_ICON = `<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17" r="3.5"/><circle cx="18.5" cy="17" r="3.5"/><path d="M5.5 17 10 9h6l2.5 8M10 9l3 8h-2M15 6h3"/></svg>`;
+const fact = (value, label) => { const [n, u] = String(value).split(" "); return `<div><b>${esc(n)}${u ? `<small style="font-size:.55em;margin-left:2px">${esc(u)}</small>` : ""}</b><span>${esc(label)}</span></div>`; };
+
 async function drawHome() {
-  // "Continue" card: the most recently ridden route that's part-way done.
+  // The hero features one route: one you're part-way through, else the one used most recently.
   const going = metas.filter(m => m.pos > 50 && m.pos < m.total - 5).sort((a, b) => (b.lastRidden || 0) - (a.lastRidden || 0))[0];
-  $("homeContinue").hidden = !going;
-  if (going) {
-    $("homeContinue").dataset.id = going.id;
-    $("contName").textContent = going.name;
-    $("contSub").textContent = `${fmtDShort(going.pos)} done, ${fmtDShort(going.total - going.pos)} to go`;
+  const next = going || metas.slice().sort((a, b) => recency(b) - recency(a))[0];
+  const hero = $("hero");
+  if (!next) {
+    hero.innerHTML = `<p class="kicker">Welcome</p><h2>Ride real hills at home</h2>${WELCOME_ART}
+      <p class="small" style="margin:12px 0 14px">Add a GPX file of a Strava route and ride it on your Bowflex, with the grade, resistance and climbs as you go.</p>
+      <button class="primary" data-hero="add">Add your first route</button>`;
+  } else {
+    const pct = Math.round(next.pos / next.total * 100);
+    const facts = going ? fact(fmtDShort(going.pos), "ridden") + fact(fmtDShort(going.total - going.pos), "to go") + fact(`${pct}%`, "complete")
+      : fact(fmtDShort(next.total), "distance") + (next.hasEle === false ? "" : fact(`${fmtE(next.gain)} ${eUnit()}`, "climbing"));
+    hero.innerHTML = `<p class="kicker">${going ? "Continue where you left off" : "Ready when you are"}</p>
+      <h2>${esc(next.name)}</h2>${heroSvg(next.preview, going ? going.pos / going.total : null)}
+      <div class="facts">${facts}</div>
+      <button class="primary" data-hero="ride" data-id="${esc(next.id)}">${BIKE_ICON}${going ? "Continue ride" : "Ride this route"}</button>
+      <button class="alt" data-hero="pick">Choose a different route</button>`;
   }
   $("tRoutes").textContent = metas.length ? `${metas.length} route${metas.length === 1 ? "" : "s"} saved` : "Add your first routes";
   try {
@@ -1165,7 +1232,12 @@ async function drawHome() {
     $("tSettings").textContent = (await strava.status()).connected ? "Resistance, units, Strava (connected)" : "Resistance, units, Strava";
   } catch (e) {}
 }
-$("homeContinue").addEventListener("click", () => { const m = metas.find(x => x.id === $("homeContinue").dataset.id); if (m) pickForRide(m); });
+$("hero").addEventListener("click", e => {
+  const b = e.target.closest("[data-hero]"); if (!b) return;
+  if (b.dataset.hero === "ride") { const m = metas.find(x => x.id === b.dataset.id); if (m) pickForRide(m); }
+  else if (b.dataset.hero === "pick") { START.route = null; go("start"); }
+  else go("routes");
+});
 
 /* --- Start a ride: 1. choose a route, 2. connect the bike, 3. ride --- */
 const START = { route: null };

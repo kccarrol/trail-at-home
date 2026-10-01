@@ -18,7 +18,19 @@ A small offline app for riding Strava GPX routes on an indoor bike. It stores up
 
 ## Updating the app
 
-If you change any files, open `sw.js` and bump the version (for example `trail-at-home-v8` to `trail-at-home-v9`) before uploading. Phones pick up the new version the next time the app is opened twice.
+If you change any files, open `sw.js` and bump the version (for example `trail-at-home-v10` to `trail-at-home-v11`) before uploading. Phones pick up the new version the next time the app is opened twice.
+
+## Using it
+
+The Home page has five buttons:
+
+- **Start a ride:** choose a route, connect the bike (optional), then Start ride. If you've ridden part of a route, a Continue card on Home jumps straight to it, and you can pick whether to carry on or start from the beginning.
+- **Browse routes:** add GPX files, search, filter by progress and length, sort, and Ride, Rename, Start over or Delete a route.
+- **Ride history:** every ride, with search, filters (when, finished or part-way, on Strava or not), sorting and totals. Download a ride as a TCX file or upload it to Strava.
+- **Info:** how to get GPX files, what the trail signs mean, connecting the VeloCore, how speed and resistance work, and Strava.
+- **Settings:** resistance, hill difficulty, weight, units, the profile's look-ahead distance, and the Strava connection. They apply to every ride.
+
+On the ride page, a bar pinned to the bottom of the screen shows Ready, Riding, Paused, Auto-paused or Route finished, with the Start/Pause/Resume button and End ride always in reach. End ride saves the ride to history and shows its summary, keeping your spot on the route. The gear button opens Settings without ending the ride. The Strava setup steps are also in the app, under Info.
 
 ## Notes
 
@@ -27,7 +39,7 @@ If you change any files, open `sw.js` and bump the version (for example `trail-a
 - Hill difficulty (in Settings) scales how steep hills feel, from 100% (true to the route) down to 0% (everything flat). It changes both your speed and the suggested resistance.
 - The ride screen shows the next stretch of the route (1, 2 or 5 km, set in Settings) above a strip of the whole route, both coloured by grade: blue downhill, green 0–3%, yellow 3–6%, orange 6–10%, red 10% and up. Tap the strip to jump to a spot.
 - A note appears 1 km before each climb ("Climb in 350 m · 1.2 km · avg 6%") and counts down the rest while you're on it. Tap it to hide it for that climb.
-- Every ride is kept under "Ride history" on the route list (the last 50, plus any still waiting to upload). From there or from the finish screen you can download a ride as a TCX file, or upload it to Strava in one tap once Strava is connected.
+- Every ride is kept in Ride history (the last 50, plus any still waiting to upload). From there or from a ride's summary you can download a ride as a TCX file, or upload it to Strava in one tap once Strava is connected.
 - If you stop pedaling for 5 seconds, the ride clock pauses until you start again.
 - Routes added before version 4 only have elevation, not map positions. Add their GPX files again to update them in place; your progress is kept. A GPX with no elevation is added as a flat route.
 - On a VeloCore, start the third-party app workout from Programs on the bike's screen before tapping Connect bike. Close other apps that might already be connected to it.
@@ -37,7 +49,7 @@ If you change any files, open `sw.js` and bump the version (for example `trail-a
 
 ## Sending rides to Strava
 
-**Without any setup:** tap "Download TCX" on the finish screen or in Ride history. The file goes to your phone's Downloads. To add it to Strava, open strava.com/upload/select in a browser (Strava's phone app can't import files), choose "File", and pick it.
+**Without any setup:** tap "Download TCX" on a ride's summary or in Ride history. The file goes to your phone's Downloads. To add it to Strava, open strava.com/upload/select in a browser (Strava's phone app can't import files), choose "File", and pick it.
 
 **One-tap upload (one-time setup, about 15 minutes, free).** Strava only hands out upload access to apps that keep a "client secret" private, and a web app can't hide one. So the secret lives in a tiny helper you run for free on Cloudflare, and the app talks to Strava through it.
 
@@ -48,7 +60,7 @@ If you change any files, open `sw.js` and bump the version (for example `trail-a
    - `STRAVA_CLIENT_SECRET`: your Client Secret (choose the "Secret" type so it's encrypted)
    - `ALLOWED_ORIGIN`: your app's origin, for example `https://yourname.github.io` (no path, no trailing slash)
    Deploy, and copy the Worker's address (it ends in `.workers.dev`).
-4. **Connect the app.** On the route list, open "Strava", then "One-time setup". Enter the Client ID and the helper address, tap "Connect Strava", sign in, and leave "Upload your activities" ticked.
+4. **Connect the app.** In Settings, under Strava, open "One-time setup". Enter the Client ID and the helper address, tap "Connect Strava", sign in, and leave "Upload your activities" ticked.
 
 After that, "Upload to Strava" sends the ride, marks it as a trainer ride, and changes its type to Virtual Ride. Rides that can't upload (no signal, Strava busy) wait and go the next time the app opens online. The same ride is never added twice. To remove the app's access later, go to strava.com, Settings, My Apps.
 

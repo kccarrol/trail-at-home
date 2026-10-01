@@ -148,8 +148,6 @@ details li{margin-bottom:6px}
 .stats div{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
 .stats b{display:block;font-family:var(--display);font-size:28px;font-weight:600;line-height:1.05;font-variant-numeric:tabular-nums}
 .stats span{font-size:14px;color:var(--muted)}
-.controls{margin-bottom:14px}
-.controls .primary{width:100%;font-size:20px;padding:16px}
 .row{display:flex;gap:8px;align-items:end;margin-bottom:14px}
 .row label{flex:1;font-size:15px;color:var(--muted)}
 .row input,.settings input,.settings select{display:block;width:100%;margin-top:4px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--paper);font-size:17px}
@@ -166,6 +164,7 @@ details li{margin-bottom:6px}
 .banner button{background:var(--ink);color:var(--bg);border:0;border-radius:8px;padding:8px 14px;font-weight:600}
 .notice{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 12px;font-size:15px;color:var(--muted)}
 .banner.lost{margin:10px 0 0}
+.banner.lost button{white-space:nowrap;flex:none}
 .apnote{background:var(--paper);border:1.5px solid var(--blaze);border-radius:10px;padding:8px 12px;margin:0 0 14px;font-size:15px;font-weight:500;text-align:center}
 .settings .wide{grid-column:1/-1}
 .settings input[type=range]{padding:0;border:0;background:none;accent-color:var(--blaze);height:36px}
@@ -179,39 +178,235 @@ details li{margin-bottom:6px}
 @keyframes fade{0%,60%{opacity:1}100%{opacity:0}}
 .res .big{transform-origin:right bottom}
 @media (prefers-reduced-motion:reduce){.sign{transition:none}.speed button:active{transform:none}.res.bump .big{animation:none}.res.bump .dir{animation:none;opacity:1}}
+
+/* Pages */
+.sub-head .back{flex:none}
+.sub-head h1{text-align:left}
+.gear{flex:none;background:none;border:1px solid var(--line);border-radius:8px;width:40px;height:40px;padding:8px;color:var(--ink)}
+.gear svg,.tile svg{display:block;width:100%;height:100%}
+.apptitle{font-size:34px!important}
+.tagline{color:var(--muted);margin:-4px 0 16px}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{display:grid;grid-template-columns:30px 1fr;grid-template-rows:auto auto;column-gap:10px;align-items:center;text-align:left;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:14px;min-height:92px;color:var(--ink)}
+.tile svg{grid-row:1/3;width:30px;height:30px}
+.tile b{font-family:var(--display);font-size:22px;font-weight:600;line-height:1.05}
+.tile span{font-size:14px;color:var(--muted);line-height:1.3}
+.tile-main{grid-column:1/-1;background:var(--ink);color:var(--bg);border-color:var(--ink);min-height:104px}
+.tile-main span{color:inherit;opacity:.8}
+.tile-main b{font-size:28px}
+.continue{display:block;width:100%;text-align:left;background:var(--paper);border:1.5px solid var(--blaze);border-radius:14px;padding:12px 14px;margin:0 0 10px;color:var(--ink)}
+.continue .k{display:block;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.continue b{display:block;font-family:var(--display);font-size:24px;font-weight:600;line-height:1.1}
+.continue .sub{font-size:14px;color:var(--muted)}
+.search{display:block;width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--paper);font-size:16px;margin:0 0 8px}
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:12px 0 4px}
+.filters .search{grid-column:1/-1;margin:0}
+.filters select{width:100%;min-width:0;padding:9px 8px;border:1px solid var(--line);border-radius:10px;background:var(--paper);font-size:15px}
+.empty{color:var(--muted);margin:12px 0}
+.steps{display:flex;gap:6px;list-style:none;padding:0;margin:0 0 14px}
+.steps li{flex:1;text-align:center;font-size:14px;font-weight:600;color:var(--muted);border-bottom:3px solid var(--line);padding-bottom:6px}
+.steps li.on{color:var(--ink);border-color:var(--blaze)}
+.pick .route .open{padding-bottom:12px}
+.picked .route{margin-bottom:12px}
+.picked .change{display:block;width:100%;background:none;border:0;border-top:1px solid var(--line);padding:10px;font-weight:600;color:var(--muted)}
+.from{border:1px solid var(--line);border-radius:10px;padding:8px 12px 10px;margin:0 0 14px}
+.from legend{font-weight:600;padding:0 4px}
+.from label{display:flex;gap:8px;align-items:center;padding:4px 0}
+.from input{width:18px;height:18px;accent-color:var(--blaze)}
+.stephead{font-family:var(--display);font-size:24px;font-weight:600;margin:6px 0 4px}
+.stephead span{font-size:17px;color:var(--muted);font-weight:500}
+.small{font-size:14px;color:var(--muted)}
+.wide{width:100%;margin-top:14px;font-size:20px;padding:16px}
+.linkbtn.inline{border:0;padding:0;font-size:inherit;color:var(--ink);font-weight:600;text-decoration:underline}
+.info ol b{color:var(--ink)}
+h1[tabindex]:focus{outline:none}
+h1[tabindex]:focus-visible{outline:3px solid var(--blaze);outline-offset:2px}
+.info h2,.settings h2{font-family:var(--display);font-size:24px;font-weight:600;margin:22px 0 6px}
+.info h2:first-of-type,.settings h2:first-of-type{margin-top:6px}
+.info ol,.info ul{padding-left:22px;margin:6px 0;color:var(--muted)}
+.info li{margin-bottom:6px}
+.info p{color:var(--muted);margin:6px 0}
+.settings .grid{margin-top:6px}
+.rstate{margin:0 0 8px;text-align:center;font-weight:600;font-size:15px;border-radius:999px;padding:6px 12px;background:var(--paper);border:1px solid var(--line);color:var(--muted)}
+.rstate[data-state="riding"]{border-color:var(--green);color:var(--green)}
+.rstate[data-state="paused"],.rstate[data-state="auto"]{background:var(--blaze);border-color:var(--blaze);color:#1D2A21}
+.rstate[data-state="finished"]{border-color:var(--ink);color:var(--ink)}
+.controls{display:flex;gap:8px;margin:0}
+.ridebar{position:sticky;bottom:0;z-index:5;margin:0 -16px;padding:8px 16px calc(10px + env(safe-area-inset-bottom,0px));background:var(--bg);border-top:1px solid var(--line);box-shadow:0 -6px 14px rgba(0,0,0,.08)}
+.ridebar .rstate{margin:0 0 8px;padding:4px 12px}
+.ridebar .controls .primary{padding:13px;font-size:19px}
+.controls .primary{flex:2}
+.controls .secondary{flex:1;font-size:17px}
+.ride-paused .speed,.ride-paused .sign{opacity:.55;transition:opacity .3s}
 </style>
 </head>
 <body>
 <div class="wrap">
+  <div class="banner" id="updBanner" hidden><span>A new version of the app is ready.</span><button id="updBtn">Reload</button></div>
 
-  <!-- Route library -->
-  <section id="lib">
+  <!-- Home -->
+  <section class="screen" id="scr-home">
     <header>
-      <h1>Trail at Home</h1>
+      <h1 class="apptitle">Trail at Home</h1>
       <button class="linkbtn" id="install" hidden>Install app</button>
     </header>
-    <div class="banner" id="updBanner" hidden><span>A new version of the app is ready.</span><button id="updBtn">Reload</button></div>
-    <div class="intro" id="intro" hidden>
-      <h2>Ride Strava routes on your Bowflex</h2>
-      <p>Add GPX files of your routes. While you pedal, the app shows how steep the trail is at your spot on the route and which resistance level to set.</p>
+    <p class="tagline">Ride your Strava routes on your Bowflex, with real hills.</p>
+    <button class="continue" id="homeContinue" hidden>
+      <span class="k">Continue</span><b id="contName"></b><span class="sub" id="contSub"></span>
+    </button>
+    <nav class="tiles" aria-label="Main menu">
+      <button class="tile tile-main" data-go="start"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17" r="3.5"/><circle cx="18.5" cy="17" r="3.5"/><path d="M5.5 17 10 9h6l2.5 8M10 9l3 8h-2M15 6h3"/></svg><b>Start a ride</b><span id="tStart">Choose a route, connect your bike, go</span></button>
+      <button class="tile" data-go="routes"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20 9 8l4 7 3-4 5 9z"/><circle cx="17" cy="5" r="2"/></svg><b>Browse routes</b><span id="tRoutes">Add, find and manage routes</span></button>
+      <button class="tile" data-go="history"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><b>Ride history</b><span id="tHistory">Past rides and uploads</span></button>
+      <button class="tile" data-go="info"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg><b>Info</b><span>Guides and help</span></button>
+      <button class="tile" data-go="settings"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg><b>Settings</b><span id="tSettings">Resistance, units, Strava</span></button>
+    </nav>
+  </section>
+
+  <!-- Start a ride: choose a route, then connect the bike -->
+  <section class="screen" id="scr-start" hidden>
+    <header class="sub-head">
+      <button class="back" data-back>‹ Home</button>
+      <h1>Start a ride</h1>
+    </header>
+    <ol class="steps" aria-label="Steps">
+      <li id="stepL1" class="on">1. Route</li><li id="stepL2">2. Bike</li><li>3. Ride</li>
+    </ol>
+    <div id="step1">
+      <input type="search" class="search" id="pickSearch" placeholder="Search your routes" aria-label="Search your routes">
+      <p class="empty" id="pickEmpty" hidden>No routes yet. <button class="linkbtn" data-go="routes">Add routes</button></p>
+      <ul class="routes pick" id="pickList"></ul>
     </div>
+    <div id="step2" hidden>
+      <div class="picked" id="picked"></div>
+      <fieldset class="from" id="fromBox" hidden>
+        <legend>Start from</legend>
+        <label><input type="radio" name="from" value="resume" checked> Where you left off (<span id="fromWhere"></span>)</label>
+        <label><input type="radio" name="from" value="begin"> The beginning</label>
+      </fieldset>
+      <h2 class="stephead">Connect your bike <span>(optional)</span></h2>
+      <p class="small">On a VeloCore, start the third-party app workout from Programs on the bike's screen first, then tap Connect bike. Without a bike, you'll match your speed to the console with the + and − buttons.</p>
+      <div class="bt" id="startBt" hidden>
+        <button data-bt="bike">Connect bike</button>
+        <button data-bt="hr">Connect heart rate</button>
+      </div>
+      <p class="btmsg" data-btmsg></p>
+      <button class="primary wide" id="beginRide">Start ride</button>
+    </div>
+  </section>
+
+  <!-- Browse routes -->
+  <section class="screen" id="scr-routes" hidden>
+    <header class="sub-head">
+      <button class="back" data-back>‹ Home</button>
+      <h1>Browse routes</h1>
+    </header>
     <div class="actions">
       <label class="primary">Add GPX routes<input type="file" id="file" multiple accept=".gpx,application/gpx+xml,application/xml,text/xml,application/octet-stream"></label>
       <button class="secondary" id="sample" hidden>Add a sample route</button>
     </div>
     <p class="status" id="status" role="status"></p>
     <p class="err" id="err" role="alert"></p>
-    <p class="count" id="count"></p>
     <p class="notice" id="legacy" hidden><span id="legacyText"></span></p>
+    <div class="filters" id="routeFilters">
+      <input type="search" class="search" id="rSearch" placeholder="Search by name" aria-label="Search routes by name">
+      <select id="rProgress" aria-label="Progress"><option value="">Any progress</option><option value="new">Not started</option><option value="going">In progress</option><option value="done">Finished</option></select>
+      <select id="rLength" aria-label="Length"></select>
+      <select id="rSort" aria-label="Sort"><option value="recent">Recently used</option><option value="name">Name</option><option value="short">Shortest</option><option value="long">Longest</option><option value="climb">Most climbing</option></select>
+    </div>
+    <p class="count" id="count"></p>
     <ul class="routes" id="routes"></ul>
-    <details id="histBox">
-      <summary>Ride history <span id="histCount"></span></summary>
-      <p class="upmsg" id="histEmpty">Rides you finish or leave part-way show up here.</p>
-      <p class="upmsg" id="histMsg" role="status"></p>
-      <ul class="hist" id="hist"></ul>
-    </details>
-    <details class="strava" id="stravaBox">
-      <summary>Strava</summary>
+  </section>
+
+  <!-- Ride history -->
+  <section class="screen" id="scr-history" hidden>
+    <header class="sub-head">
+      <button class="back" data-back>‹ Home</button>
+      <h1>Ride history</h1>
+    </header>
+    <div class="filters" id="histFilters">
+      <input type="search" class="search" id="hSearch" placeholder="Search by route" aria-label="Search rides by route">
+      <select id="hPeriod" aria-label="When"><option value="">All time</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="year">This year</option></select>
+      <select id="hStatus" aria-label="Status"><option value="">All rides</option><option value="finished">Finished the route</option><option value="partial">Part of a route</option><option value="strava">On Strava</option><option value="notstrava">Not on Strava</option></select>
+      <select id="hSort" aria-label="Sort"><option value="new">Newest</option><option value="old">Oldest</option><option value="far">Longest</option><option value="climb">Most climbing</option></select>
+    </div>
+    <p class="count" id="histTotals"></p>
+    <p class="empty" id="histEmpty">Rides you finish or end part-way show up here.</p>
+    <p class="upmsg" id="histMsg" role="status"></p>
+    <ul class="hist" id="hist"></ul>
+  </section>
+
+  <!-- Info -->
+  <section class="screen info" id="scr-info" hidden>
+    <header class="sub-head">
+      <button class="back" data-back>‹ Home</button>
+      <h1>Info</h1>
+    </header>
+    <h2>Getting started</h2>
+    <ol>
+      <li>Add routes in Browse routes, from GPX files (see below).</li>
+      <li>Tap Start a ride, choose a route, and connect the bike if you like.</li>
+      <li>Pedal. The screen shows how steep the trail is where you are and which resistance level to set on the bike.</li>
+    </ol>
+    <h2>Getting a GPX file from Strava</h2>
+    <ol>
+      <li>Open strava.com in a browser (the export option isn't in the Strava app).</li>
+      <li>For a saved route, open the route and choose Export GPX. For a ride, open the activity, tap the ⋯ menu, and choose Export GPX.</li>
+      <li>In Browse routes, tap Add GPX routes and choose one or more files. Routes are saved on this phone only.</li>
+    </ol>
+    <h2>What the trail signs mean</h2>
+    <div class="legend" id="legend"></div>
+    <p>The elevation profile on the ride screen uses its own colours for steepness: blue downhill, green 0–3%, yellow 3–6%, orange 6–10%, red 10% and up.</p>
+    <h2>Connecting your VeloCore</h2>
+    <p>On the bike's screen, go to Programs and start the third-party app workout, then tap Connect bike and pick the bike. The app reads power, cadence and speed, and heart rate if you connect a monitor. If the bike disconnects mid-ride, the ride carries on as if you'd stopped pedaling while the app reconnects.</p>
+    <h2>How speed and resistance work</h2>
+    <p>When the bike shares power, your speed is worked out from your watts, your weight (plus 13 kg of bike) and the trail's grade, as if riding a mountain bike on hardpacked dirt. Climbs slow you down, descents carry momentum, and speed tops out at <span id="capNote">56 mph</span>.</p>
+    <p>The suggested resistance is your flat-ground level plus a number of levels for each 1% of grade (half as much on descents). Hill difficulty in Settings scales both the speed effect and the suggestion.</p>
+    <h2>While you ride</h2>
+    <ul>
+      <li>If you stop pedaling for 5 seconds, the ride clock pauses until you start again.</li>
+      <li>The upper profile shows the trail just ahead; the strip below shows the whole route. Tap the strip to jump to a spot.</li>
+      <li>A note appears 1 km before each climb. Tap it to hide it for that climb.</li>
+      <li>End ride saves the ride to your history. Your spot on the route is kept, so you can continue it another day.</li>
+    </ul>
+    <h2 id="infoStrava">Sending rides to Strava</h2>
+    <p>Every ride can be downloaded as a TCX file from its summary or from Ride history, then added at strava.com/upload/select in a browser (Strava's phone app can't import files).</p>
+    <p>For one-tap uploads there's a one-time setup, about 15 minutes and free, best done on a computer. Strava only gives upload access to apps that keep a "client secret" private, which a web app can't, so the secret lives in a tiny helper you run on Cloudflare.</p>
+    <ol>
+      <li><b>Create a Strava API app</b> at strava.com/settings/api. Name it "Trail at Home", category "Training", and set Authorization Callback Domain to just this app's host, for example yourname.github.io. Note the Client ID and Client Secret.</li>
+      <li><b>Create the helper.</b> At dash.cloudflare.com (free plan), create a Worker from the "Hello World" starter, choose Edit code, paste in strava-helper-worker.js from the app's files, and deploy.</li>
+      <li><b>Give the helper its settings</b> under Variables and Secrets: STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET (as the encrypted "Secret" type) and ALLOWED_ORIGIN, this app's origin such as https://yourname.github.io. Deploy, and copy the Worker's address ending in .workers.dev.</li>
+      <li><b>Connect the app.</b> In Settings, under Strava, open One-time setup, enter the Client ID and helper address, tap Connect Strava, and leave "Upload your activities" ticked.</li>
+    </ol>
+    <p>Uploads are marked as virtual rides and never added twice. Rides that can't upload right away (no signal, Strava busy) go the next time the app opens online.</p>
+    <h2>Your data</h2>
+    <p>Routes, rides and settings are stored only on this phone. Nothing leaves it unless you upload a ride to Strava.</p>
+  </section>
+
+  <!-- Settings -->
+  <section class="screen settings" id="scr-settings" hidden>
+    <header class="sub-head">
+      <button class="back" data-back>‹ Home</button>
+      <h1>Settings</h1>
+    </header>
+    <h2>Resistance</h2>
+    <div class="grid">
+      <label class="wide">Hill difficulty: <b id="diffVal">100%</b>
+        <input type="range" id="setDiff" min="0" max="100" step="5" aria-describedby="diffHelp">
+      </label>
+      <label>Resistance on flat ground<input type="number" id="setFlat" min="1" max="100" step="1"></label>
+      <label>Levels added per 1% of grade<input type="number" id="setStep" min="0" max="20" step="0.5"></label>
+      <label>Highest level on your bike<input type="number" id="setMax" min="1" max="200" step="1"></label>
+      <label><span id="weightL">Your weight (lb)</span><input type="number" id="setWeight" min="20" max="700" step="1"></label>
+    </div>
+    <p class="small" id="diffHelp">Hill difficulty sets how much of each hill you feel: 100% is true to the route, 50% makes hills half as steep, 0% rides flat. Example: with 25 on flat ground and 4 levels per 1%, a 6% climb suggests 49.</p>
+    <h2>Display</h2>
+    <div class="grid">
+      <label>Units<select id="setUnits"><option value="mi">Miles and feet</option><option value="km">Kilometers and meters</option></select></label>
+      <label>Profile shows ahead<select id="setAhead"></select></label>
+    </div>
+    <h2>Strava</h2>
+    <div class="strava" id="stravaBox">
       <p id="stravaState">Not set up.</p>
       <div class="row2">
         <button class="primary" id="stravaConnect" hidden>Connect Strava</button>
@@ -222,34 +417,25 @@ details li{margin-bottom:6px}
       <p class="small">With positions, the ride appears on the real route's map on Strava. It's marked as a virtual ride, but people may still take it for an outdoor ride. Untick this to send only distance, elevation, speed, power, cadence and heart rate.</p>
       <details id="setupBox">
         <summary>One-time setup</summary>
-        <p class="small">Uploading in one tap needs a free Strava API app and a small helper that keeps its secret safe. The steps are in the README under "Sending rides to Strava". Without them, you can still download rides as TCX files.</p>
+        <p class="small">Uploading in one tap needs a free Strava API app and a small helper that keeps its secret safe. Without them, you can still download rides as TCX files. <button class="linkbtn inline" data-go="info" data-anchor="infoStrava">See the setup steps</button></p>
         <label>Strava client ID<input type="text" id="setClientId" inputmode="numeric" autocomplete="off" placeholder="e.g. 123456"></label>
         <label>Helper address<input type="url" id="setHelper" autocomplete="off" placeholder="https://trail-at-home-strava.yourname.workers.dev"></label>
       </details>
-    </details>
-    <details>
-      <summary>Getting a GPX file from Strava</summary>
-      <ol>
-        <li>Open strava.com in a browser (the export option isn't in the Strava app).</li>
-        <li>For a saved route, open the route and choose Export GPX. For a ride, open the activity, tap the ⋯ menu, and choose Export GPX.</li>
-        <li>Tap Add GPX routes and choose one or more files. Routes are saved on this phone only.</li>
-      </ol>
-    </details>
-    <details class="last">
-      <summary>What the trail signs mean</summary>
-      <div class="legend" id="legend"></div>
-    </details>
+    </div>
+    <h2>Storage</h2>
+    <p class="small" id="storageInfo"></p>
   </section>
 
-  <!-- Ride screen -->
-  <main id="ride" hidden>
-    <header>
-      <button class="back" id="back">‹ Routes</button>
+  <!-- Ride -->
+  <main class="screen" id="scr-ride" hidden>
+    <header class="sub-head">
+      <button class="back" id="back">‹ Home</button>
       <h1 id="title"></h1>
+      <button class="gear" id="rideSettings" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg></button>
     </header>
 
     <section class="summary" id="summary" hidden>
-      <h2>Route finished</h2>
+      <h2 id="sumTitle">Route finished</h2>
       <p id="sumText"></p>
       <div class="sumacts" id="sumActs" hidden>
         <button class="primary" id="sumUp" hidden>Upload to Strava</button>
@@ -281,12 +467,7 @@ details li{margin-bottom:6px}
       <div><b id="mCad">–</b><span>rpm</span></div>
       <div><b id="mHr">–</b><span>bpm</span></div>
     </div>
-    <div class="bt" id="btRow" hidden>
-      <button id="btBike">Connect bike</button>
-      <button id="btHr">Connect heart rate</button>
-    </div>
     <div class="banner lost" id="lostBanner" role="status" hidden><span id="lostText">Bike disconnected. Reconnecting…</span><button id="lostManual">Use + and −</button></div>
-    <p class="btmsg" id="btMsg">On a VeloCore, start the third-party app workout from Programs on the bike's screen first, then tap Connect bike.</p>
 
     <section class="profiles" id="profiles" aria-label="Elevation profile">
       <div class="ahead">
@@ -297,7 +478,6 @@ details li{margin-bottom:6px}
       </div>
       <canvas class="strip" id="strip" role="img" aria-label="The whole route. Tap to jump to that spot."></canvas>
     </section>
-    <p class="hint">Tap the lower strip to jump to that spot on the route. Tap a climb note to hide it.</p>
 
     <div class="stats">
       <div><b id="sDist">0.00</b><span id="sDistL">mi ridden</span></div>
@@ -305,8 +485,11 @@ details li{margin-bottom:6px}
       <div><b id="sGain">0</b><span id="sGainL">ft climbed</span></div>
     </div>
 
-    <div class="controls"><button class="primary" id="go">Start riding</button></div>
-    <p class="apnote" id="apNote" role="status" hidden>Auto-paused. Start pedaling to carry on.</p>
+    <div class="bt" id="btRow" hidden>
+      <button id="btBike" data-bt="bike">Connect bike</button>
+      <button id="btHr" data-bt="hr">Connect heart rate</button>
+    </div>
+    <p class="btmsg" id="btMsg" data-btmsg>On a VeloCore, start the third-party app workout from Programs on the bike's screen first, then tap Connect bike.</p>
 
     <div class="row" id="syncRow">
       <label>Distance on your console
@@ -315,24 +498,14 @@ details li{margin-bottom:6px}
       <button id="syncBtn">Match</button>
     </div>
 
-    <details class="settings last">
-      <summary>Settings</summary>
-      <div class="grid">
-        <label class="wide">Hill difficulty: <b id="diffVal">100%</b>
-          <input type="range" id="setDiff" min="0" max="100" step="5" aria-describedby="diffHelp">
-        </label>
-        <label>Resistance on flat ground<input type="number" id="setFlat" min="1" max="100" step="1"></label>
-        <label>Levels added per 1% of grade<input type="number" id="setStep" min="0" max="20" step="0.5"></label>
-        <label>Highest level on your bike<input type="number" id="setMax" min="1" max="200" step="1"></label>
-        <label><span id="weightL">Your weight (lb)</span><input type="number" id="setWeight" min="20" max="700" step="1"></label>
-        <label>Profile shows ahead<select id="setAhead"></select></label>
-        <label>Units<select id="setUnits"><option value="mi">Miles and feet</option><option value="km">Kilometers and meters</option></select></label>
+    <!-- Pinned to the bottom of the screen, so Pause and End ride are always in reach -->
+    <div class="ridebar">
+      <p class="rstate" id="rideState" data-state="ready" role="status">Ready</p>
+      <div class="controls">
+        <button class="primary" id="go">Start</button>
+        <button class="secondary" id="endRide" hidden>End ride</button>
       </div>
-      <p id="diffHelp">Hill difficulty sets how much of each hill you feel. At 100% climbs and descents are true to the route; at 50% they're half as steep, in both your speed and the suggested resistance; at 0% everything rides flat.</p>
-      <p>Example: with 25 on flat ground and 4 levels per 1%, a 6% climb suggests 49. On descents resistance drops by half as much. Adjust until climbs feel right for your legs.</p>
-      <p>When the bike shares power, your speed is worked out from your watts, your weight (plus 13 kg of bike), and the trail's grade, as if riding a mountain bike on hardpacked dirt. Climbs slow you down, descents carry momentum, and speed tops out at <span id="capNote">56 mph</span>. If you stop pedaling for 5 seconds, the ride clock pauses until you start again.</p>
-      <button class="restart" id="restart">Restart this route</button>
-    </details>
+    </div>
   </main>
 </div>
 <script src="climbs.js"></script>

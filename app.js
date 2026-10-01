@@ -163,7 +163,7 @@ function sampleGrid() {
   return e;
 }
 
-/* ========== Library screen ========== */
+/* ========== Routes: the library, and the Browse routes page ========== */
 let metas = [], previewFixRunning = false;
 const setStatus = t => { $("status").textContent = t; };
 const setError = t => { $("err").textContent = t; };
@@ -187,9 +187,8 @@ async function upgradeRoute(m, prep) {
 async function loadLibrary() {
   try { metas = await allMeta(); }
   catch (e) { metas = []; setError(e.message === "no-idb" ? "This browser can't save routes. Open the app in Chrome." : "Your saved routes couldn't be opened. Try closing and reopening the app."); }
-  drawLibrary();
   fixMissingPreviews();
-  drawStrava(); drawHistory();
+  refreshPage();
 }
 
 // The route list's elevation outline, coloured by grade like the ride screen. It's SVG rather than
@@ -211,32 +210,58 @@ function previewSvg(pv) {
   return `<svg class="pv" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${h}</svg>`;
 }
 
+// One route card. "manage" (Browse routes) has action buttons; "pick" (Start a ride) is tap-to-choose.
+function routeCard(m, mode) {
+  const finished = m.pos >= m.total - 5;
+  const pct = m.pos > 50 ? Math.min(100, m.pos / m.total * 100) : 0;
+  const where = finished ? " Finished." : m.pos > 50 ? ` Stopped at ${fmtDShort(m.pos)}.` : "";
+  const climb = m.hasEle === false ? "Flat (the GPX had no elevation)." : `${fmtE(m.gain)} ${eUnit()} of climbing.`;
+  const id = esc(m.id);
+  const acts = mode !== "manage" ? "" : `<div class="acts">
+        <button data-act="ride" data-id="${id}">Ride</button><button data-act="rename" data-id="${id}">Rename</button>
+        ${m.pos > 50 ? `<button data-act="reset" data-id="${id}">Start over</button>` : ""}<button data-act="delete" data-id="${id}">Delete</button></div>`;
+  return `<li class="route">
+      <button class="open" data-id="${id}" ${mode === "static" ? "disabled" : ""}>
+        <b>${esc(m.name)}</b>${previewSvg(m.preview)}
+        <span class="sub">${fmtDShort(m.total)}, ${climb}${where}</span>
+        ${pct > 0 ? `<span class="prog"><i style="width:${pct.toFixed(1)}%"></i></span>` : ""}
+      </button>${acts}
+    </li>`;
+}
+const recency = m => Math.max(m.lastRidden || 0, m.added || 0);
+const routeState = m => m.pos >= m.total - 5 ? "done" : m.pos > 50 ? "going" : "new";
+// Length bands in the rider's units: under 6 mi / 6–20 mi / over 20 mi, or 10 / 30 km.
+const lengthBands = () => isMi() ? [6 * MI, 20 * MI, "under 6 mi", "6–20 mi", "over 20 mi"] : [10000, 30000, "under 10 km", "10–30 km", "over 30 km"];
+function fillLengthFilter() {
+  const [, , a, b, c] = lengthBands(), sel = $("rLength"), v = sel.value;
+  sel.innerHTML = `<option value="">Any length</option><option value="s">Short (${a})</option><option value="m">Medium (${b})</option><option value="l">Long (${c})</option>`;
+  sel.value = v;
+}
+function filteredRoutes() {
+  const q = $("rSearch").value.trim().toLowerCase(), prog = $("rProgress").value, len = $("rLength").value, [lo, hi] = lengthBands();
+  const list = metas.filter(m => (!q || m.name.toLowerCase().includes(q)) && (!prog || routeState(m) === prog) &&
+    (!len || (len === "s" ? m.total < lo : len === "m" ? m.total >= lo && m.total <= hi : m.total > hi)));
+  const by = { recent: (a, b) => recency(b) - recency(a), name: (a, b) => a.name.localeCompare(b.name),
+    short: (a, b) => a.total - b.total, long: (a, b) => b.total - a.total, climb: (a, b) => (b.gain || 0) - (a.gain || 0) }[$("rSort").value];
+  return list.sort(by);
+}
 function drawLibrary() {
-  metas.sort((a, b) => Math.max(b.lastRidden, b.added) - Math.max(a.lastRidden, a.added));
   const empty = !metas.length;
-  $("intro").hidden = !empty; $("sample").hidden = !empty;
-  $("count").textContent = empty ? "" : `${metas.length} of ${MAX_ROUTES} routes saved`;
+  $("sample").hidden = !empty; $("routeFilters").hidden = empty;
+  fillLengthFilter();
   // Routes added before this version have elevation but no map positions (hasTrack undefined).
   const old = metas.filter(m => m.hasTrack === undefined).length;
   $("legacy").hidden = !old;
   $("legacyText").textContent = old === 1
     ? "1 route was added before the app saved map positions. Add its GPX file again to update it; your progress is kept."
     : `${old} routes were added before the app saved map positions. Add their GPX files again to update them; your progress is kept.`;
-  $("routes").innerHTML = metas.map(m => {
-    const finished = m.pos >= m.total - 5;
-    const pct = m.pos > 50 ? Math.min(100, m.pos / m.total * 100) : 0;
-    const where = finished ? " Finished." : m.pos > 50 ? ` Stopped at ${fmtDShort(m.pos)}.` : "";
-    const climb = m.hasEle === false ? "Flat (the GPX had no elevation)." : `${fmtE(m.gain)} ${eUnit()} of climbing.`;
-    return `<li class="route">
-      <button class="open" data-id="${esc(m.id)}">
-        <b>${esc(m.name)}</b>${previewSvg(m.preview)}
-        <span class="sub">${fmtDShort(m.total)}, ${climb}${where}</span>
-        ${pct > 0 ? `<span class="prog"><i style="width:${pct.toFixed(1)}%"></i></span>` : ""}
-      </button>
-      <div class="acts"><button data-act="rename" data-id="${esc(m.id)}">Rename</button><button data-act="delete" data-id="${esc(m.id)}">Delete</button></div>
-    </li>`;
-  }).join("");
+  const list = filteredRoutes();
+  $("count").textContent = empty ? "No routes yet. Add GPX files of your Strava routes to get started."
+    : list.length === metas.length ? `${metas.length} of ${MAX_ROUTES} routes saved` : `Showing ${list.length} of ${metas.length} routes`;
+  $("routes").innerHTML = list.map(m => routeCard(m, "manage")).join("");
+  if (page === "start") drawPick();
 }
+["rSearch", "rProgress", "rLength", "rSort"].forEach(id => $(id).addEventListener(id === "rSearch" ? "input" : "change", drawLibrary));
 
 // Routes saved by an earlier version have no coloured outline yet; add one in the background.
 async function fixMissingPreviews() {
@@ -247,7 +272,7 @@ async function fixMissingPreviews() {
     try { const p = await getProfile(m.id); if (p) { m.preview = TAH.makePreview(preparedFrom(p)); delete m.spark; await putMeta(m); } } catch (e) {}
   }
   previewFixRunning = false;
-  if (!$("lib").hidden) drawLibrary();
+  if (page === "routes" || page === "start") drawLibrary();
 }
 
 async function importFiles(files) {
@@ -278,6 +303,7 @@ async function importFiles(files) {
   if (dupes) bits.push(dupes === 1 ? "1 route was already saved." : `${dupes} routes were already saved.`);
   if (flat.length) bits.push(`${joinList(flat.map(n => `"${n}"`))} ${flat.length === 1 ? "has" : "have"} no elevation data, so ${flat.length === 1 ? "it rides" : "they ride"} flat.`);
   setStatus(bits.join(" ")); setError(problems.join(" "));
+  if (added || updated) { $("rSearch").value = ""; $("rProgress").value = ""; $("rLength").value = ""; $("rSort").value = "recent"; }
   drawLibrary();
 }
 
@@ -292,9 +318,11 @@ $("routes").addEventListener("click", async ev => {
     if (b.dataset.act === "rename") {
       const name = prompt("Route name", m.name);
       if (name && name.trim()) { m.name = name.trim().slice(0, 120); await putMeta(m); drawLibrary(); }
+    } else if (b.dataset.act === "reset") {
+      if (confirm(`Start "${m.name}" over from the beginning? Past rides stay in your history.`)) { m.pos = 0; m.stats = null; await putMeta(m); drawLibrary(); }
     } else if (b.dataset.act === "delete") {
       if (confirm(`Delete "${m.name}"? This can't be undone.`)) { await deleteRoute(m.id); metas = metas.filter(x => x !== m); setStatus(""); drawLibrary(); }
-    } else await openRide(m);
+    } else pickForRide(m);                               // "Ride" or a tap on the card: straight to connecting the bike
   } catch (e) { setError(storageMsg(e)); }
 });
 
@@ -306,9 +334,11 @@ const R = {
   resShown: null, clsShown: null
 };
 
+// Loads a route into the ride page. The caller shows the page (see beginRide).
 async function openRide(m) {
+  if (R.session) closeRide();                          // never two ride clocks at once
   const p = await getProfile(m.id);
-  if (!p) { setError("That route's data is missing. Try adding it again."); return; }
+  if (!p) { setError("That route's data is missing. Try adding it again."); return false; }
   R.meta = m; R.route = preparedFrom(p); R.log = null; R.resShown = null; R.clsShown = null;
   P.dismissed.clear(); P.yr = null; U.lastRideId = null;
   R.session = TAH.createRideSession({
@@ -319,26 +349,24 @@ async function openRide(m) {
   TAH.currentRide = R.session;
   shown.clear();
   $("title").textContent = m.name;
-  $("summary").hidden = true; $("apNote").hidden = true;
-  const st = R.session.state;
-  $("go").textContent = st.finished ? "Ride again" : st.distM > 0 ? "Resume" : "Start riding";
-  $("lib").hidden = true; $("ride").hidden = false; window.scrollTo(0, 0);
-  if (location.hash !== "#ride") history.pushState({ ride: true }, "", "#ride");
+  $("summary").hidden = true;
   $("noEle").hidden = R.route.hasElevation;
-  update(); layoutProfiles();
-  if (st.finished) showSummary();
+  return true;
 }
 
+// Leaving the ride page: pause, save the ride to history and the spot on the route.
 function closeRide() {
   if (R.session && R.session.state.running) stop();
   endLog(); saveProgress();
   R.meta = null; R.route = null; R.session = null; TAH.currentRide = null;
-  $("ride").hidden = true; $("lib").hidden = false;
-  setStatus(""); drawLibrary();
-  logSave.then(drawHistory);                           // the ride just ended now shows in history
+  releaseScreen(); setStatus("");
+  logSave.then(() => { if (page === "history") drawHistory(); if (page === "home") drawHome(); });
 }
-$("back").addEventListener("click", () => { if (location.hash === "#ride") history.back(); else closeRide(); });
-window.addEventListener("popstate", () => { if (R.meta) closeRide(); });
+$("back").addEventListener("click", () => {
+  if (R.session && R.session.state.running && !confirm("Leave the ride? It will be paused and saved to your history, and you can continue the route later.")) return;
+  goHome();
+});
+$("rideSettings").addEventListener("click", () => go("settings"));
 
 function saveProgress() {
   if (!R.meta || !R.session) return;
@@ -394,7 +422,7 @@ function fitCanvas(v) {
 }
 // Size both canvases and pre-draw the static whole-route strip. Runs on open, resize, rotation and theme change.
 function layoutProfiles() {
-  if (!R.route || $("ride").hidden) return;
+  if (!R.route || page !== "ride") return;
   P.theme = readTheme();
   fitCanvas(P.ahead);
   const dpr = fitCanvas(P.strip);
@@ -429,7 +457,7 @@ function drawProfiles(t) {
 // and redraws; when paused it draws once, or until the height range settles.
 function profileFrame(t) {
   P.raf = 0;
-  if (!R.session || $("ride").hidden) return;
+  if (!R.session || page !== "ride") return;
   if (R.session.state.running) { P.raf = requestAnimationFrame(profileFrame); R.session.tick(); }
   drawProfiles(t);
   if (!P.raf && P.easing) P.raf = requestAnimationFrame(profileFrame);
@@ -476,6 +504,18 @@ function update() {
   const r = R.route, ses = R.session; if (!r || !ses) return;
   const st = ses.state, g = st.grade, c = cls(g), md = speedMode();
 
+  // Where the ride stands: Ready, Riding, Auto-paused, Paused (a ride in progress), Finished.
+  const inRide = !!R.log;
+  const state = st.finished && !st.running ? "finished" : st.running ? (st.autoPaused ? "auto" : "riding") : inRide ? "paused" : "ready";
+  const words = { ready: st.distM > 50 ? `Ready to continue from ${fmtDShort(st.distM)}` : "Ready",
+    riding: "Riding", auto: "Auto-paused: start pedaling to carry on", paused: "Paused", finished: "Route finished" }[state];
+  if (shown.get("rstate") !== words) {
+    shown.set("rstate", words); $("rideState").dataset.state = state; $("rideState").textContent = words;
+    $("scr-ride").classList.toggle("ride-paused", state === "paused" || state === "auto");
+  }
+  setText("go", st.running ? "Pause" : inRide ? "Resume" : st.finished ? "Ride again" : st.distM > 50 ? "Continue route" : "Start");
+  $("endRide").hidden = !inRide;
+
   if (c !== R.clsShown) { R.clsShown = c; $("sign").dataset.cls = c; $("sym").innerHTML = SYM[c]; setText("diff", NAMES[c]); }
   const gv = Math.abs(g) < 0.05 ? 0 : g;
   setText("grade", (gv < 0 ? "−" : "") + Math.abs(gv).toFixed(1));
@@ -516,16 +556,20 @@ function flashRes(up) {
   box.classList.remove("bump"); void box.offsetWidth; box.classList.add("bump");
 }
 
-function showAutoPause(on) { $("apNote").hidden = !on; }
+function showAutoPause() { update(); }
 
-function showSummary() {
-  const st = R.session.stats, avg = st.secs > 0 ? st.dist / st.secs * 3.6 : 0;
-  let t = `${fmtT(st.secs)} of riding over ${fmtDShort(st.dist)}, averaging ${spdOut(avg)} ${sUnit()}`;
-  if (st.powSecs > 30) t += ` and ${Math.round(st.joules / st.powSecs)} watts`;
-  t += `. The route climbs ${fmtE(R.route.totalAscentM)} ${eUnit()}.`;
+// Summary of the ride just ended (from its own log, so it matches history and the Strava upload).
+function showSummary(sum, routeDone) {
+  const avg = sum.movingS > 0 ? sum.distM / sum.movingS * 3.6 : 0;
+  let t = `${fmtT(sum.movingS)} of riding over ${fmtDShort(sum.distM)}, averaging ${spdOut(avg)} ${sUnit()}`;
+  if (sum.avgPowerW != null) t += ` and ${Math.round(sum.avgPowerW)} watts`;
+  t += sum.ascentM > 1 ? `. You climbed ${fmtE(sum.ascentM)} ${eUnit()}.` : ".";
+  if (!routeDone) t += " Your spot on the route is saved, so you can continue it any time.";
+  $("sumTitle").textContent = routeDone ? "Route finished" : "Ride saved";
   $("sumText").textContent = t;
   $("summary").hidden = false;
   drawSummaryUpload();
+  if (page === "ride") window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 /* --- Riding --- */
@@ -536,19 +580,23 @@ function start() {
   if (ses.state.finished) { ses.jumpTo(0); ses.resetStats(); }
   $("summary").hidden = true;
   beginLog(); ses.start();
-  $("go").textContent = "Pause"; lockScreen();
+  lockScreen(); update();
 }
 function stop() {
   R.session.pause();
-  $("go").textContent = R.session.state.finished ? "Ride again" : "Resume";
-  $("apNote").hidden = true;
   saveProgress(); update(); releaseScreen();
 }
-function finished() {
-  $("go").textContent = "Ride again"; $("apNote").hidden = true;
+// Ends the ride (not the route): it goes to history with a summary; the route can be continued later.
+function endRide(routeDone) {
+  if (R.session.state.running) R.session.pause();
+  const sum = TAH.summarize(R.session.samples);
   const log = endLog(); U.lastRideId = log ? log.id : null;
-  saveProgress(); releaseScreen(); showSummary(); update();
+  saveProgress(); releaseScreen();
+  if (log && sum.elapsedS >= 1) showSummary(sum, routeDone);
+  update();
 }
+function finished() { endRide(true); }
+$("endRide").addEventListener("click", () => endRide(R.session.state.finished));
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") { if (R.session && R.session.state.running) lockScreen(); }
   else { saveProgress(); if (R.session) R.session.flush(); }
@@ -582,12 +630,7 @@ $("strip").addEventListener("click", e => {
   const b = e.currentTarget.getBoundingClientRect();
   R.session.jumpTo(clamp((e.clientX - b.left) / b.width, 0, 1) * R.route.totalDistM); $("summary").hidden = true; saveProgress();
 });
-$("restart").addEventListener("click", () => {
-  if (R.session.state.running) stop();
-  endLog();
-  R.session.jumpTo(0); R.session.resetStats();
-  $("summary").hidden = true; $("go").textContent = "Start riding"; saveProgress(); update();
-});
+
 
 /* --- Settings panel --- */
 function showSettings() {
@@ -623,7 +666,9 @@ const live = { power: 0, powT: 0, cad: 0, cadT: 0, hr: 0, hrT: 0, spd: 0, spdT: 
 const BT = { bike: null, hr: null, bikeUserOff: false, hrUserOff: false, bikeLost: false };
 let lastCrank = null;
 const fresh = t => t > 0 && performance.now() - t < STALE_MS;
-const btMsg = t => { $("btMsg").textContent = t; };
+// The start flow and the ride page each have Connect buttons and a message line; keep them in step.
+const btMsg = t => document.querySelectorAll("[data-btmsg]").forEach(e => { e.textContent = t; });
+const setBtBtn = (kind, props) => document.querySelectorAll(`[data-bt="${kind}"]`).forEach(b => Object.assign(b, props));
 const joinList = a => a.length < 2 ? a.join("") : a.slice(0, -1).join(", ") + " and " + a[a.length - 1];
 
 function setPower(w) { live.power = w; live.powT = performance.now(); live.hasPower = true; }
@@ -714,20 +759,20 @@ async function connectBike() {
   if (BT.bike) { BT.bikeUserOff = true; try { BT.bike.gatt.disconnect(); } catch (e) {} bikeGone("Bike disconnected."); return; }
   const dev = await pickDevice({ acceptAllDevices: true, optionalServices: [SVC.ftms, SVC.cp, SVC.csc, SVC.hr] });
   if (!dev) return;
-  btMsg("Connecting…"); $("btBike").disabled = true;
+  btMsg("Connecting…"); setBtBtn("bike", { disabled: true });
   try {
     const got = await attachBike(dev);
     if (!got.length) { try { dev.gatt.disconnect(); } catch (e) {} btMsg("That device isn't sharing fitness data. Make sure you picked the bike, then try again."); return; }
     BT.bike = dev; BT.bikeUserOff = false; lostBanner(false);
     if (!dev._tahWatch) { dev.addEventListener("gattserverdisconnected", () => bikeLost(dev)); dev._tahWatch = true; }
-    $("btBike").textContent = "Disconnect bike";
+    setBtBtn("bike", { textContent: "Disconnect bike" });
     btMsg(`Connected to ${dev.name || "your bike"}. Start pedaling…`);
     setTimeout(describeBike, 3000);
     update();
   } catch (e) {
     try { dev.gatt.disconnect(); } catch (x) {}
     btMsg("Couldn't connect. Make sure the bike is on and not connected to another app, then try again.");
-  } finally { $("btBike").disabled = false; }
+  } finally { setBtBtn("bike", { disabled: false }); }
 }
 
 // Unexpected drop: the ride keeps going as if you'd stopped pedaling (0 W), with a banner, and the
@@ -751,7 +796,7 @@ async function bikeLost(dev) {
 function lostBanner(on) { $("lostBanner").hidden = !on; }
 function bikeGone(msg) {
   BT.bike = null; BT.bikeLost = false; resetBikeData(); lostBanner(false);
-  $("btBike").textContent = "Connect bike"; btMsg(msg); update();
+  setBtBtn("bike", { textContent: "Connect bike" }); btMsg(msg); update();
 }
 $("lostManual").addEventListener("click", () => {
   const dev = BT.bike; BT.bikeUserOff = true;
@@ -763,17 +808,17 @@ async function connectHr() {
   if (BT.hr) { BT.hrUserOff = true; try { BT.hr.gatt.disconnect(); } catch (e) {} hrGone("Heart rate monitor disconnected."); return; }
   const dev = await pickDevice({ filters: [{ services: [SVC.hr] }] });
   if (!dev) return;
-  btMsg("Connecting heart rate…"); $("btHr").disabled = true;
+  btMsg("Connecting heart rate…"); setBtBtn("hr", { disabled: true });
   try {
     if (!(await attachHr(dev)).length) throw new Error("no-hr");
     BT.hr = dev; BT.hrUserOff = false;
     if (!dev._tahWatch) { dev.addEventListener("gattserverdisconnected", () => hrLost(dev)); dev._tahWatch = true; }
-    $("btHr").textContent = "Disconnect heart rate";
+    setBtBtn("hr", { textContent: "Disconnect heart rate" });
     btMsg(`Heart rate from ${dev.name || "your monitor"}.`);
   } catch (e) {
     try { dev.gatt.disconnect(); } catch (x) {}
     btMsg("Couldn't connect to the heart rate monitor. Make sure it's on and not connected to another app.");
-  } finally { $("btHr").disabled = false; }
+  } finally { setBtBtn("hr", { disabled: false }); }
 }
 async function hrLost(dev) {
   if (BT.hr !== dev || BT.hrUserOff) return;
@@ -784,12 +829,12 @@ async function hrLost(dev) {
   }
   hrGone("Lost the heart rate monitor. Tap Connect heart rate to try again.");
 }
-function hrGone(msg) { BT.hr = null; live.hrT = 0; $("btHr").textContent = "Connect heart rate"; btMsg(msg); update(); }
+function hrGone(msg) { BT.hr = null; live.hrT = 0; setBtBtn("hr", { textContent: "Connect heart rate" }); btMsg(msg); update(); }
 
 if (navigator.bluetooth) {
-  $("btRow").hidden = false;
-  $("btBike").addEventListener("click", connectBike);
-  $("btHr").addEventListener("click", connectHr);
+  $("btRow").hidden = false; $("startBt").hidden = false;
+  document.querySelectorAll('[data-bt="bike"]').forEach(b => b.addEventListener("click", connectBike));
+  document.querySelectorAll('[data-bt="hr"]').forEach(b => b.addEventListener("click", connectHr));
 } else {
   btMsg("Bluetooth isn't available in this browser. Use Chrome on Android to connect the bike.");
 }
@@ -915,7 +960,7 @@ async function drawSummaryUpload() {
   $("sumUp").hidden = !U.connected || done;
   $("sumUp").disabled = busy;
   $("sumUp").textContent = r.upload && r.upload.status === "failed" ? "Try Strava again" : "Upload to Strava";
-  $("sumMsg").innerHTML = uploadLine(r) || (U.connected ? "" : "To upload in one tap, set up Strava from the route list.");
+  $("sumMsg").innerHTML = uploadLine(r) || (U.connected ? "" : "To upload in one tap, connect Strava in Settings.");
 }
 $("sumUp").addEventListener("click", () => { if (U.lastRideId) requestUpload(U.lastRideId); });
 $("sumTcx").addEventListener("click", async () => {
@@ -923,13 +968,37 @@ $("sumTcx").addEventListener("click", async () => {
   catch (e) { $("sumMsg").textContent = e.message; }
 });
 
+/* --- Ride history page: search, filters, sort and totals --- */
+function filterRides(list) {
+  const q = $("hSearch").value.trim().toLowerCase(), per = $("hPeriod").value, st = $("hStatus").value, now = Date.now();
+  const since = per === "year" ? new Date(new Date().getFullYear(), 0, 1).getTime() : per ? now - per * 86400000 : 0;
+  const onStrava = r => r.upload && r.upload.status === "uploaded";
+  list = list.filter(r => (!q || (r.routeName || "").toLowerCase().includes(q)) && r.startedAt >= since &&
+    (!st || (st === "finished" ? r.finished : st === "partial" ? !r.finished : st === "strava" ? onStrava(r) : !onStrava(r))));
+  const d = r => (r.summary && r.summary.distM) || 0, c = r => (r.summary && r.summary.ascentM) || 0;
+  const by = { new: (a, b) => b.startedAt - a.startedAt, old: (a, b) => a.startedAt - b.startedAt, far: (a, b) => d(b) - d(a), climb: (a, b) => c(b) - c(a) }[$("hSort").value];
+  return list.sort(by);
+}
+function rideTotals(list, all) {
+  let dist = 0, secs = 0, climb = 0;
+  for (const r of list) { const s = r.summary || {}; dist += s.distM || 0; secs += s.movingS || 0; climb += s.ascentM || 0; }
+  const n = list.length === all ? `${all} ride${all === 1 ? "" : "s"}` : `${list.length} of ${all} rides`;
+  return `${n} · ${fmtDShort(dist)} · ${fmtT(secs)} · ${fmtE(climb)} ${eUnit()} climbed`;
+}
+["hSearch", "hPeriod", "hStatus", "hSort"].forEach(id => $(id).addEventListener(id === "hSearch" ? "input" : "change", drawHistory));
+
 /* --- Ride history list --- */
 async function drawHistory() {
   let list;
   try { list = (await rides.list()).filter(r => r.sampleCount >= MIN_HISTORY_SAMPLES && !(R.log && R.log.id === r.id)); }
   catch (e) { return; }
-  $("histCount").textContent = list.length ? `(${list.length})` : "";
-  $("histEmpty").hidden = list.length > 0;
+  const all = list.length;
+  list = filterRides(list);
+  $("histEmpty").hidden = all > 0;
+  $("histFilters").hidden = all === 0;
+  $("histEmpty").textContent = "Rides you finish or end part-way show up here.";
+  if (all && !list.length) { $("histEmpty").hidden = false; $("histEmpty").textContent = "No rides match those filters."; }
+  $("histTotals").textContent = list.length ? rideTotals(list, all) : "";
   $("hist").innerHTML = list.map(r => {
     const u = r.upload || {}, busy = U.live.has(r.id) || u.status === "pending" || u.status === "processing";
     const up = !U.connected || u.status === "uploaded" ? "" :
@@ -943,7 +1012,7 @@ async function drawHistory() {
   }).join("");
 }
 function refreshUploads() {
-  if (!$("lib").hidden) drawHistory();
+  if (page === "history") drawHistory();
   if (!$("summary").hidden) drawSummaryUpload();
 }
 $("hist").addEventListener("click", async ev => {
@@ -996,10 +1065,150 @@ async function handleStravaReturn() {
   const r = await strava.handleRedirect(q).catch(e => ({ handled: true, ok: false, message: e.message }));
   if (!r.handled) return;
   U.needsAuth = false;
-  $("stravaBox").open = true; $("stravaMsg").textContent = r.message;
+  go("settings", true); $("stravaMsg").textContent = r.message;
   if (r.ok) runQueue();
   drawStrava();
 }
+
+/* ========== Pages ==========
+   Home, Start a ride, Browse routes, Ride history, Info, Settings and the ride itself. Each page
+   has its own address (#routes, #history…), so the phone's back gesture moves between them. */
+const PAGES = ["home", "start", "routes", "history", "info", "settings", "ride"];
+const TITLES = { home: "Trail at Home", start: "Start a ride", routes: "Browse routes", history: "Ride history", info: "Info", settings: "Settings", ride: "Ride" };
+let page = "home";
+const pageFromHash = () => { const h = location.hash.slice(1); return PAGES.includes(h) ? h : "home"; };
+const depth = () => (history.state && history.state.depth) || 0;   // pages stacked above Home
+
+if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+function showPage(name, scrollY = 0, focus = true) {
+  if (name === "ride" && !R.meta) name = "home";
+  // Settings can be opened mid-ride without ending it; any other page ends (pauses and saves) the ride.
+  if (R.meta && name !== "ride" && name !== "settings") closeRide();
+  page = name;
+  for (const p of PAGES) $("scr-" + p).hidden = p !== name;
+  document.title = name === "home" ? "Trail at Home" : `${name === "ride" && R.meta ? R.meta.name : TITLES[name]} · Trail at Home`;
+  window.scrollTo(0, scrollY);
+  // Some pages fill in after reading storage, so restore the scroll again once they're drawn.
+  Promise.resolve(ENTER[name]()).then(() => { if (scrollY) window.scrollTo(0, scrollY); });
+  const h1 = $("scr-" + name).querySelector("h1");
+  if (focus && h1) { h1.tabIndex = -1; h1.focus({ preventScroll: true }); }
+}
+function go(name, opt = {}) {
+  if (!opt.replace && history.state) history.replaceState(Object.assign({}, history.state, { scroll: window.scrollY }), "");
+  const st = Object.assign({ page: name, depth: name === "home" ? 0 : opt.replace ? depth() : depth() + 1 }, opt.state || {});
+  history[opt.replace ? "replaceState" : "pushState"](st, "", name === "home" ? location.pathname : "#" + name);
+  showPage(name);
+}
+// Back to Home by unwinding the pages above it, so the phone's back gesture doesn't revisit them.
+// If the app was opened on another page (a reload on #history, say), that first page becomes Home.
+let wantHome = false;
+function goHome() { const d = depth(); if (d > 0) { wantHome = true; history.go(-d); } else go("home", { replace: true }); }
+window.addEventListener("popstate", () => {
+  if (wantHome) { wantHome = false; if (pageFromHash() !== "home") { go("home", { replace: true }); return; } }
+  showPage(pageFromHash(), (history.state && history.state.scroll) || 0);
+});
+document.addEventListener("click", e => {
+  const g = e.target.closest("[data-go]");
+  if (g) {
+    if (g.dataset.go === "start") START.route = null;
+    go(g.dataset.go);
+    if (g.dataset.anchor) $(g.dataset.anchor).scrollIntoView({ block: "start" });   // e.g. Settings → the Strava steps in Info
+    return;
+  }
+  if (e.target.closest("[data-back]")) { if (page === "settings" && R.meta) history.back(); else goHome(); }
+});
+
+const ENTER = {
+  home: drawHome,
+  start: startEnter,
+  routes: drawLibrary,
+  history: drawHistory,
+  info: () => {},
+  settings() {
+    showSettings(); drawStrava();
+    $("scr-settings").querySelector("[data-back]").textContent = R.meta ? "‹ Back to ride" : "‹ Home";
+    rides.list().then(l => {
+      const n = l.filter(r => r.sampleCount >= MIN_HISTORY_SAMPLES).length;
+      $("storageInfo").textContent = `${metas.length} of ${MAX_ROUTES} routes and ${n} ride${n === 1 ? "" : "s"} are stored on this phone only.`;
+    }).catch(() => {});
+  },
+  ride() { update(); layoutProfiles(); if (!$("summary").hidden) drawSummaryUpload(); }
+};
+const refreshPage = () => ENTER[page]();
+
+/* --- Home --- */
+async function drawHome() {
+  // "Continue" card: the most recently ridden route that's part-way done.
+  const going = metas.filter(m => m.pos > 50 && m.pos < m.total - 5).sort((a, b) => (b.lastRidden || 0) - (a.lastRidden || 0))[0];
+  $("homeContinue").hidden = !going;
+  if (going) {
+    $("homeContinue").dataset.id = going.id;
+    $("contName").textContent = going.name;
+    $("contSub").textContent = `${fmtDShort(going.pos)} done, ${fmtDShort(going.total - going.pos)} to go`;
+  }
+  $("tRoutes").textContent = metas.length ? `${metas.length} route${metas.length === 1 ? "" : "s"} saved` : "Add your first routes";
+  try {
+    const list = await rides.list(), n = list.filter(r => r.sampleCount >= MIN_HISTORY_SAMPLES).length;
+    const waiting = list.filter(r => rides.isQueued(r.upload)).length;
+    $("tHistory").textContent = n ? `${n} ride${n === 1 ? "" : "s"}${waiting ? `, ${waiting} waiting to upload` : ""}` : "No rides yet";
+    $("tSettings").textContent = (await strava.status()).connected ? "Resistance, units, Strava (connected)" : "Resistance, units, Strava";
+  } catch (e) {}
+}
+$("homeContinue").addEventListener("click", () => { const m = metas.find(x => x.id === $("homeContinue").dataset.id); if (m) pickForRide(m); });
+
+/* --- Start a ride: 1. choose a route, 2. connect the bike, 3. ride --- */
+const START = { route: null };
+function showStep(n) {
+  const changed = $("step" + n).hidden;
+  $("step1").hidden = n !== 1; $("step2").hidden = n !== 2;
+  $("stepL1").classList.toggle("on", n === 1); $("stepL2").classList.toggle("on", n === 2);
+  if (n === 1) drawPick(); else drawPicked();
+  if (changed) window.scrollTo(0, 0);
+}
+function startEnter() {
+  const step2 = history.state && history.state.step === 2 && START.route && metas.includes(START.route);
+  showStep(step2 ? 2 : 1);
+}
+// From Browse routes or the Continue card: skip straight to connecting the bike.
+function pickForRide(m) { START.route = m; go("start", { state: { step: 2 } }); }
+function drawPick() {
+  const q = $("pickSearch").value.trim().toLowerCase();
+  const list = metas.filter(m => !q || m.name.toLowerCase().includes(q)).sort((a, b) => recency(b) - recency(a));
+  $("pickEmpty").hidden = metas.length > 0; $("pickSearch").hidden = !metas.length;
+  $("pickList").innerHTML = list.map(m => routeCard(m, "pick")).join("") || (metas.length ? '<li class="empty">No routes match.</li>' : "");
+}
+$("pickSearch").addEventListener("input", drawPick);
+$("pickList").addEventListener("click", ev => {
+  const b = ev.target.closest("button.open"); if (!b) return;
+  const m = metas.find(x => x.id === b.dataset.id); if (!m) return;
+  START.route = m;
+  history.replaceState(Object.assign({}, history.state, { scroll: window.scrollY }), "");
+  history.pushState({ page: "start", step: 2, fromList: true, depth: depth() + 1 }, "", "#start");
+  showStep(2);
+});
+function drawPicked() {
+  const m = START.route, part = m.pos > 50 && m.pos < m.total - 5;
+  $("picked").innerHTML = `<ul class="routes">${routeCard(m, "static")}</ul><button class="change" id="changeRoute">Choose a different route</button>`;
+  $("fromBox").hidden = !part;
+  if (part) { $("fromWhere").textContent = `${fmtDShort(m.pos)} of ${fmtDShort(m.total)}`; document.querySelector('input[name="from"][value="resume"]').checked = true; }
+  $("beginRide").textContent = part ? "Start ride" : m.pos >= m.total - 5 ? "Ride it again" : "Start ride";
+  $("changeRoute").addEventListener("click", () => {
+    if (history.state && history.state.fromList) history.back();
+    else { history.replaceState({ page: "start", depth: depth() }, "", "#start"); showStep(1); }
+  });
+}
+let beginning = false;                                 // a double tap must not load the route twice
+$("beginRide").addEventListener("click", async () => {
+  const m = START.route; if (!m || beginning) return;
+  beginning = true; $("beginRide").disabled = true;
+  try {
+    if (!$("fromBox").hidden && document.querySelector('input[name="from"]:checked').value === "begin") { m.pos = 0; m.stats = null; await putMeta(m); }
+    if (!(await openRide(m))) return;
+    go("ride", { replace: true });                     // back from the ride returns to where you came from
+    start();
+  } catch (e) { btMsg(storageMsg(e)); }
+  finally { beginning = false; $("beginRide").disabled = false; }
+});
 
 /* ========== App shell: install, offline, updates ========== */
 let installEvt = null;
@@ -1024,7 +1233,13 @@ if ("serviceWorker" in navigator) {
 }
 $("updBtn").addEventListener("click", () => { if (R.session && R.session.state.running) stop(); endLog(); saveProgress(); location.reload(); });
 
-if (location.hash === "#ride") history.replaceState(null, "", location.pathname);
+// Open on the page in the address (a reload keeps you on, say, Ride history), but never mid-ride.
+{
+  const first = pageFromHash() === "ride" ? "home" : pageFromHash();
+  // Any ?code=… from Strava's sign-in stays in the address for handleStravaReturn to read.
+  history.replaceState({ page: first, depth: 0 }, "", location.pathname + location.search + (first === "home" ? "" : "#" + first));
+  showPage(first, 0, false);
+}
 loadLibrary();
 handleStravaReturn().finally(runQueue);
 })();

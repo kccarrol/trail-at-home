@@ -5,12 +5,47 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Trail at Home</title>
 <meta name="theme-color" content="#1D2A21">
+<meta name="app-version" content="11">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+/* Start-up guard. If the app fails to start (a file missing, or files from two different versions),
+   show what went wrong and a Repair button instead of a page that silently does nothing. Repair
+   clears only the app's stored copy of its own files; routes, rides and settings are kept. */
+window.__tah = { ok: false, shown: false };
+function tahRepair() {
+  // Offline, the stored copy is all there is: keep it, and ask the rider to reconnect first.
+  if (!navigator.onLine) { alert("You're offline. Connect to the internet, then tap Repair and reload."); return; }
+  var jobs = [];
+  if (window.caches) jobs.push(caches.keys().then(function (k) { return Promise.all(k.map(function (n) { return caches.delete(n); })); }));
+  if (navigator.serviceWorker) jobs.push(navigator.serviceWorker.getRegistrations().then(function (r) { return Promise.all(r.map(function (x) { return x.unregister(); })); }));
+  Promise.all(jobs).catch(function () {}).then(function () { location.reload(); });
+}
+function tahFail(msg) {
+  if (window.__tah.ok || window.__tah.shown) return;
+  // Mismatched files usually come from an update caught half-way: repair once automatically.
+  try { if (navigator.onLine && !sessionStorage.getItem("tah-autorepair")) { sessionStorage.setItem("tah-autorepair", "1"); tahRepair(); return; } } catch (e) {}
+  window.__tah.shown = true;
+  var show = function () {
+    var d = document.createElement("div");
+    d.className = "bootfail"; d.setAttribute("role", "alert");
+    d.innerHTML = '<b>The app couldn\'t start.</b><span>One of its files is missing or from a different version. This usually means an update didn\'t fully download, or not every file was uploaded to GitHub.</span><small class="why"></small><button type="button">Repair and reload</button><small>Repair downloads a fresh copy of the app. Your routes, rides and settings are kept.</small>';
+    d.querySelector(".why").textContent = "Details: " + msg;
+    d.querySelector("button").onclick = function () { try { sessionStorage.removeItem("tah-autorepair"); } catch (e) {} tahRepair(); };
+    document.body.insertBefore(d, document.body.firstChild);
+  };
+  if (document.body) show(); else document.addEventListener("DOMContentLoaded", show);
+}
+addEventListener("error", function (e) {
+  var t = e.target;
+  if (t && t.tagName === "SCRIPT") tahFail("The file " + (t.getAttribute("src") || "a script") + " didn't load. Check it's uploaded with the other app files.");
+  else if (e.message && !window.__tah.ok) tahFail(e.message);
+}, true);
+</script>
 <style>
 :root{
   --bg:#E6EBDF; --paper:#F4F6EF; --ink:#1D2A21; --muted:#56655A; --line:#C2CCB7;
@@ -217,6 +252,9 @@ details li{margin-bottom:6px}
 .stephead span{font-size:17px;color:var(--muted);font-weight:500}
 .small{font-size:14px;color:var(--muted)}
 .wide{width:100%;margin-top:14px;font-size:20px;padding:16px}
+.bootfail{position:sticky;top:0;z-index:20;display:grid;gap:6px;margin:0 0 12px;padding:12px 14px;background:var(--paper);border:2px solid var(--err);border-radius:12px;color:var(--ink);font-size:15px}
+.bootfail button{background:var(--ink);color:var(--bg);border:0;border-radius:8px;padding:11px 14px;font-weight:600;font-size:16px}
+.bootfail small{color:var(--muted)}
 .linkbtn.inline{border:0;padding:0;font-size:inherit;color:var(--ink);font-weight:600;text-decoration:underline}
 .info ol b{color:var(--ink)}
 h1[tabindex]:focus{outline:none}
@@ -517,5 +555,6 @@ h1[tabindex]:focus-visible{outline:3px solid var(--blaze);outline-offset:2px}
 <script src="rideStore.js"></script>
 <script src="strava.js"></script>
 <script src="app.js"></script>
+<script>if (!window.__tah.ok) tahFail("The app's main file (app.js) didn't finish starting. It may be from a different version than index.html.");</script>
 </body>
 </html>

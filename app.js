@@ -8,6 +8,17 @@
 /* ========== Helpers ========== */
 const $ = id => document.getElementById(id);
 const TAH = window.TAH;
+
+// Must match <meta name="app-version"> in index.html (and is bumped with sw.js's cache version).
+const APP_VERSION = "11";
+{
+  const page = document.querySelector('meta[name="app-version"]');
+  if (!page || page.content !== APP_VERSION) throw new Error(`index.html and app.js are from different versions (${page ? page.content : "older"} and ${APP_VERSION}). Upload both from the same zip.`);
+  // Each helper file must have loaded; name the first one that didn't.
+  const need = { "climbs.js": "detectClimbs", "profileCanvas.js": "drawProfile", "routePrep.js": "prepareRoute", "speedModel.js": "makeSettings",
+    "rideSession.js": "createRideSession", "tcx.js": "buildTcx", "rideStore.js": "createRideStore", "strava.js": "createStrava" };
+  for (const f in need) if (!TAH || typeof TAH[need[f]] !== "function") throw new Error(`The file ${f} is missing or out of date. Upload it with the other app files.`);
+}
 const STEP = TAH.GRID_STEP_M;            // routes are resampled every 10 m
 const MI = 1609.344, FT = 0.3048, KG_PER_LB = 0.45359237;
 const MAX_ROUTES = 100, MAX_FILE_BYTES = 30e6, KEEP_RIDE_LOGS = 50;
@@ -1243,3 +1254,7 @@ $("updBtn").addEventListener("click", () => { if (R.session && R.session.state.r
 loadLibrary();
 handleStravaReturn().finally(runQueue);
 })();
+
+// Started cleanly: tell the start-up guard in index.html, and allow an automatic repair again next time.
+window.__tah.ok = true;
+try { sessionStorage.removeItem("tah-autorepair"); } catch (e) {}

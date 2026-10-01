@@ -18,7 +18,9 @@ A small offline app for riding Strava GPX routes on an indoor bike. It stores up
 
 ## Updating the app
 
-If you change any files, open `sw.js` and bump the version (for example `trail-at-home-v10` to `trail-at-home-v11`) before uploading. Phones pick up the new version the next time the app is opened twice.
+Always upload **every** file from the zip together, even ones that didn't change. Then open the app, wait a few seconds, close it fully and open it again.
+
+If you change files yourself, bump the version number in all three places so they match: the cache name in `sw.js` (for example `trail-at-home-v11` to `trail-at-home-v12`), `<meta name="app-version">` in `index.html`, and `APP_VERSION` in `app.js`. If the app finds files from different versions, it fetches a fresh copy automatically; if that doesn't fix it, it shows what went wrong and a "Repair and reload" button. Repair never touches your routes, rides or settings.
 
 ## Using it
 

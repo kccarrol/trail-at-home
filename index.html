@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Trail at Home</title>
 <meta name="theme-color" content="#0F1612">
-<meta name="app-version" content="15">
+<meta name="app-version" content="16">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -240,6 +240,7 @@ h1[tabindex]:focus-visible{outline:3px solid var(--gear);outline-offset:2px}
 .settings input,.settings select,.row input,.strava input[type=text],.strava input[type=url]{display:block;box-sizing:border-box;width:100%;margin-top:6px;padding:11px 12px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--raised);font-size:17px;color:var(--ink)}
 .settings input[type=range]{padding:0;border:0;background:none;accent-color:var(--accent);height:36px}
 .settings p{margin:10px 0 0}
+.rideset:not([hidden]) + h2{margin-top:26px}
 .settings b#diffVal{color:var(--accent-text)}
 .strava p{margin:8px 0}
 .strava label{margin-top:12px}
@@ -454,7 +455,7 @@ summary{font-weight:600;cursor:pointer}
     <p>The suggested resistance is your flat-ground level plus a number of levels for each 1% of grade (half as much on descents). Hill difficulty in Settings scales both the speed effect and the suggestion.</p>
     <h2>While you ride</h2>
     <ul>
-      <li>While you ride, the route name and Riding label are hidden to give the trail more room. Settings is the gear button next to Finish.</li>
+      <li>While you ride, the route name and Riding label are hidden to give the trail more room. Settings is the gear button next to Finish. Mid-ride, its This ride section connects the bike or heart rate monitor, and matches the distance on your console.</li>
       <li>A yellow frame around the screen means the ride is paused. If you stop pedaling for 5 seconds, the ride clock pauses until you start again.</li>
       <li>The upper profile shows the trail just ahead; the strip below shows the whole route. Tap the strip to jump to a spot.</li>
       <li>A note appears 1 km before each climb. Tap it to hide it for that climb.</li>
@@ -481,6 +482,21 @@ summary{font-weight:600;cursor:pointer}
       <button class="back labelled" data-back hidden>Back to ride</button>
       <h1>Settings</h1>
     </header>
+    <!-- Only while a ride is open: the bike connection and matching the console's distance -->
+    <section class="rideset" id="rideSet" hidden>
+      <h2>This ride</h2>
+      <div class="bt" id="btRow" hidden>
+        <button id="btBike" data-bt="bike">Connect bike</button>
+        <button id="btHr" data-bt="hr">Connect heart rate</button>
+      </div>
+      <p class="btmsg" id="btMsg" data-btmsg>On a VeloCore, start the third-party app workout from Programs on the bike's screen first, then tap Connect bike.</p>
+      <div class="row" id="syncRow">
+        <label>Distance on your console
+          <input id="syncIn" inputmode="decimal" placeholder="e.g. 2.35">
+        </label>
+        <button id="syncBtn">Match</button>
+      </div>
+    </section>
     <h2>Resistance</h2>
     <div class="grid">
       <label class="wide">Hill difficulty: <b id="diffVal">100%</b>
@@ -577,19 +593,6 @@ summary{font-weight:600;cursor:pointer}
       <div><b id="sDist">0.00</b><span id="sDistL">mi ridden</span></div>
       <div><b id="sLeft">0.00</b><span id="sLeftL">mi to go</span></div>
       <div><b id="sGain">0</b><span id="sGainL">ft climbed</span></div>
-    </div>
-
-    <div class="bt" id="btRow" hidden>
-      <button id="btBike" data-bt="bike">Connect bike</button>
-      <button id="btHr" data-bt="hr">Connect heart rate</button>
-    </div>
-    <p class="btmsg" id="btMsg" data-btmsg>On a VeloCore, start the third-party app workout from Programs on the bike's screen first, then tap Connect bike.</p>
-
-    <div class="row" id="syncRow">
-      <label>Distance on your console
-        <input id="syncIn" inputmode="decimal" placeholder="e.g. 2.35">
-      </label>
-      <button id="syncBtn">Match</button>
     </div>
 
     <!-- Pinned to the bottom of the screen, so Pause and Finish are always in reach -->

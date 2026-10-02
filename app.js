@@ -10,7 +10,7 @@ const $ = id => document.getElementById(id);
 const TAH = window.TAH;
 
 // Must match <meta name="app-version"> in index.html (and is bumped with sw.js's cache version).
-const APP_VERSION = "15";
+const APP_VERSION = "16";
 {
   const page = document.querySelector('meta[name="app-version"]');
   if (!page || page.content !== APP_VERSION) throw new Error(`index.html and app.js are from different versions (${page ? page.content : "older"} and ${APP_VERSION}). Upload both from the same zip.`);
@@ -847,7 +847,7 @@ function bikeGone(msg) {
 $("lostManual").addEventListener("click", () => {
   const dev = BT.bike; BT.bikeUserOff = true;
   try { dev && dev.gatt.disconnect(); } catch (e) {}
-  bikeGone("Speed is on the + and − buttons. Tap Connect bike to try the bike again.");
+  bikeGone("Speed is on the + and − buttons. To try the bike again, tap the gear button, then Connect bike.");
 });
 
 async function connectHr() {
@@ -1183,6 +1183,7 @@ const ENTER = {
   settings() {
     showSettings(); drawStrava();
     $("scr-settings").querySelector("[data-back]").hidden = !R.meta;   // "Back to ride" only mid-ride
+    $("rideSet").hidden = !R.meta;                                       // so is the bike section
     rides.list().then(l => {
       const n = l.filter(r => r.sampleCount >= MIN_HISTORY_SAMPLES).length;
       $("storageInfo").textContent = `${metas.length} of ${MAX_ROUTES} routes and ${n} ride${n === 1 ? "" : "s"} are stored on this phone only.`;

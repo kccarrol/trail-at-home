@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Trail at Home</title>
 <meta name="theme-color" content="#0F1612">
-<meta name="app-version" content="14">
+<meta name="app-version" content="15">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -320,7 +320,15 @@ summary{font-weight:600;cursor:pointer}
 .choice.done small{color:#fff}
 .choice:active{transform:translateY(1px)}
 .keep{display:block;margin:2px auto 0;padding:8px 22px}
+.controls .gear{width:54px;height:auto;padding:13px}
 .ride-paused .speed,.ride-paused .sign{opacity:.55;transition:opacity .3s}
+/* During a ride: no title bar or Riding label, so the trail gets the room. Paused: a yellow frame. */
+.in-ride #rideHead{display:none}
+.in-ride .rstate{position:absolute;width:1px;height:1px;margin:0;padding:0;overflow:hidden;clip:rect(0 0 0 0);border:0}  /* still read out by screen readers */
+.in-ride .sign{margin-top:4px}
+.pauseframe{display:none;position:fixed;inset:0;z-index:20;pointer-events:none;border:5px solid var(--gear)}
+.ride-paused .pauseframe{display:block}
+.pauseframe span{position:absolute;top:0;left:50%;transform:translateX(-50%);background:var(--gear);color:#1A1405;font-weight:700;font-size:15px;line-height:1.2;padding:2px 16px 5px;border-radius:0 0 10px 10px;white-space:nowrap}
 
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none!important;transition:none!important}
@@ -446,7 +454,8 @@ summary{font-weight:600;cursor:pointer}
     <p>The suggested resistance is your flat-ground level plus a number of levels for each 1% of grade (half as much on descents). Hill difficulty in Settings scales both the speed effect and the suggestion.</p>
     <h2>While you ride</h2>
     <ul>
-      <li>If you stop pedaling for 5 seconds, the ride clock pauses until you start again.</li>
+      <li>While you ride, the route name and Riding label are hidden to give the trail more room. Settings is the gear button next to Finish.</li>
+      <li>A yellow frame around the screen means the ride is paused. If you stop pedaling for 5 seconds, the ride clock pauses until you start again.</li>
       <li>The upper profile shows the trail just ahead; the strip below shows the whole route. Tap the strip to jump to a spot.</li>
       <li>A note appears 1 km before each climb. Tap it to hide it for that climb.</li>
       <li>Finish saves the ride to your history and asks what's next. Finish route marks the route finished, so Home stops offering to continue it. Stop for now keeps your spot, so you can continue another day.</li>
@@ -511,11 +520,13 @@ summary{font-weight:600;cursor:pointer}
 
   <!-- Ride -->
   <main class="screen" id="scr-ride" hidden>
-    <header class="sub-head">
+    <!-- Hidden while a ride is in progress, to give the trail more room -->
+    <header class="sub-head" id="rideHead">
       <button class="back" id="back" aria-label="Leave the ride">Back</button>
       <h1 id="title"></h1>
-      <button class="gear" id="rideSettings" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg></button>
     </header>
+    <!-- A yellow frame around the screen while the ride is paused -->
+    <div class="pauseframe" aria-hidden="true"><span id="pauseTag">Paused</span></div>
 
     <section class="summary" id="summary" hidden>
       <h2 id="sumTitle">Route finished</h2>
@@ -587,6 +598,7 @@ summary{font-weight:600;cursor:pointer}
       <div class="controls" id="rideControls">
         <button class="primary" id="go">Start</button>
         <button class="secondary" id="endRide" hidden>Finish</button>
+        <button class="gear" id="rideSettings" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg></button>
       </div>
       <div class="endsheet" id="endSheet" role="group" aria-labelledby="endQ" hidden>
         <p class="endq" id="endQ">Finish this ride?</p>

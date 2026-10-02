@@ -104,7 +104,10 @@ properties at the top of the `<style>` block; use them rather than new hex value
 - Type: Barlow Condensed, bold and uppercase, only for page titles, the Home hero, route names
   and big numbers. Everything else is Barlow, sentence case. No all-caps labels.
 - Home must show all four tiles above the tab bar on 360×740, 390×844 and 412×915 (the
-  `layout` suite checks this). The ride page keeps Pause and Finish pinned on screen.
+  `layout` suite checks this). The ride page keeps Pause, Finish and Settings pinned on screen. During a
+  ride (`.in-ride`) the title bar and status label are hidden; paused or auto-paused
+  (`.ride-paused`) draws a yellow frame with a tag. No green frame while riding, on purpose: the
+  frame only appears when something needs attention.
 - Keep text contrast at 4.5:1 or better (3:1 only for large bold text).
 
 UI copy: plain words, sentence case, active voice, says what will happen ("Upload to Strava").
@@ -118,8 +121,6 @@ app, waits a few seconds, closes it fully and opens it again. Always ship every 
 
 ## Known limits and ideas
 
-- On the smallest common screen (360×740) the ride page's pinned bar overlaps the bottom ~16 px
-  of the whole-route strip.
 - Speed tops out at 90 km/h (56 mph); descents can feel fast. One constant in `speedModel.js`.
 - Ride history keeps the last 50 rides, plus any still waiting to upload to Strava.
 - The light theme was dropped with the redesign; it could return via a second set of tokens.

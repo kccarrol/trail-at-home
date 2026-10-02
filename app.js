@@ -10,7 +10,7 @@ const $ = id => document.getElementById(id);
 const TAH = window.TAH;
 
 // Must match <meta name="app-version"> in index.html (and is bumped with sw.js's cache version).
-const APP_VERSION = "14";
+const APP_VERSION = "15";
 {
   const page = document.querySelector('meta[name="app-version"]');
   if (!page || page.content !== APP_VERSION) throw new Error(`index.html and app.js are from different versions (${page ? page.content : "older"} and ${APP_VERSION}). Upload both from the same zip.`);
@@ -534,6 +534,8 @@ function update() {
   if (shown.get("rstate") !== words) {
     shown.set("rstate", words); $("rideState").dataset.state = state; $("rideState").textContent = words;
     $("scr-ride").classList.toggle("ride-paused", state === "paused" || state === "auto");
+    $("scr-ride").classList.toggle("in-ride", inRide);
+    $("pauseTag").textContent = state === "auto" ? "Auto-paused: pedal to carry on" : "Paused";
   }
   setText("go", st.running ? "Pause" : inRide ? "Resume" : done ? "Ride again" : st.distM > 50 ? "Continue route" : "Start");
   $("endRide").hidden = !inRide;

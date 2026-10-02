@@ -77,6 +77,10 @@ After that, "Upload to Strava" sends the ride, marks it as a trainer ride, and c
 - `rideSession.js` runs the ride clock: position, auto-pause, and a once-a-second ride log saved every 30 seconds.
 - `rideStore.js` keeps ride history; `tcx.js` turns a ride into a TCX file; `strava.js` connects to and uploads to Strava through the helper in `strava-helper-worker.js`.
 - `app.js` is the screens, storage and Bluetooth.
-- `run-tests.js` checks the maths. With Node 18 or later installed, run `node run-tests.js` in this folder. It isn't needed on the phone.
+- `run-tests.js` checks the maths. With Node 18 or later installed, run `node run-tests.js` in this folder.
+- `tests/browser/` drives the real app in a headless browser with a fake VeloCore and a fake Strava. See `CLAUDE.md` for how to run it.
+- `CLAUDE.md` is the guide Claude Code reads at the start of every session: the rules, architecture, tests and design system.
+
+None of the test files are needed on the phone; uploading them does no harm.
 
 In code, ride history is `TAH.rides` (`list()`, `get(id)`) and the ride in progress is `TAH.currentRide`.

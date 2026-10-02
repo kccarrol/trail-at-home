@@ -30,15 +30,16 @@ screen, and is not a developer: explain changes in plain language.
 
 ## Tests
 
-- Unit tests (Node 18+, no installs): `node run-tests.js`. 36 tests covering the speed model,
-  route prep, climbs, the profile drawing, the ride session, TCX export and the Strava client.
+- Unit tests (Node 18+, no installs): `node run-tests.js`. 44 tests covering the speed model,
+  route prep, climbs, the profile drawing, the ride session, the suggested resistance, TCX export
+  and the Strava client.
 - Browser tests (Playwright, headless Chromium):
   - Setup, once: `pip install playwright && python3 -m playwright install chromium`
   - All suites: `python3 tests/browser/run_browser_tests.py` (about 7 minutes)
   - Some suites: `python3 tests/browser/run_browser_tests.py tabs pages`
   - List: `python3 tests/browser/run_browser_tests.py --list`
 
-  Suites: ride, upgrade, profile, strava, pages, tabs, layout, startup, offline. They use a fake
+  Suites: ride, resistance, upgrade, profile, strava, pages, tabs, layout, startup, offline. They use a fake
   VeloCore (`tests/browser/fake-bluetooth.js`), a fake clock, and a fake Strava. Exit code is
   non-zero on any failure.
 - Real-world checks the tests can't make: an actual VeloCore over Bluetooth, and a real Strava
@@ -53,6 +54,7 @@ screen, and is not a developer: explain changes in plain language.
 | `routePrep.js` | GPX points → 10 m grid with smoothed elevation, grade, positions, climbs; `sampleAt()` |
 | `speedModel.js` | Physics: watts, grade, weight, rolling resistance, drag → speed with momentum |
 | `rideSession.js` | The ride clock: position, auto-pause, 1 Hz ride log, flushes every 30 s |
+| `resistance.js` | Suggested resistance: average grade 75 m behind to 125 m ahead, steps of 5, held ≥20 s; knob check |
 | `climbs.js` | Finds climbs (≥3% for ≥200 m, merged across <100 m gaps, ≥15 m gain) |
 | `profileCanvas.js` | Draws the look-ahead and whole-route elevation profiles on canvas |
 | `tcx.js` | Builds TCX files and ride summaries |

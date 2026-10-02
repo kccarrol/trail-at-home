@@ -159,6 +159,55 @@ def suite_ride(browser, base):
     no_errors(page); ctx.close()
 
 
+def suite_resistance(browser, base):
+    """Suggested resistance in steps of 5, the yellow Turn up / Turn down alert, and the bike's own level."""
+    ctx, page = new_page(browser)
+    add_routes(page, base, [HILL()])
+    ride_route(page, "Test hill", 250)
+    page.wait_for_function("document.getElementById('res').textContent !== ''")
+    seen, alerts, changes, last, stuck = set(), 0, 0, None, 0
+    for _ in range(700):                                       # a second at a time up the 8% climb
+        page.clock.run_for(1000)
+        r = int(page.text_content("#res")); seen.add(r)
+        alert = "alert" in page.get_attribute("#resBox", "class")
+        if last is not None and r != last:
+            changes += 1
+            if alert and page.text_content("#resLbl") == ("Turn up" if r > last else "Turn down"): alerts += 1
+        stuck = stuck + 1 if alert else 0
+        last = r
+        if page.evaluate("TAH.currentRide.state.distM") > 1700: break
+    check("the suggestion only shows steps of 5", all(v % 5 == 0 for v in seen), sorted(seen))
+    check("it starts at 25 on the flat and reaches 55 on the 8% climb", 25 in seen and 55 in seen, sorted(seen))
+    check("it changes a few times, not every few meters", 2 <= changes <= 8, f"{changes} changes")
+    check("every change turns the box yellow with Turn up or Turn down", alerts == changes, f"{alerts} of {changes}")
+    check("without a level from the bike, the highlight clears by itself", stuck <= 9, f"yellow for {stuck} s in a row")
+    check("no 'Bike at' line when the bike doesn't report its level", page.text_content("#resBike") == "")
+    page.evaluate("__bt.res = 30"); page.clock.run_for(5000)
+    check("a level that hasn't moved since connecting isn't trusted (could be a placeholder)", page.text_content("#resBike") == "" and "alert" not in page.get_attribute("#resBox", "class"))
+    page.evaluate("__bt.res = 31"); page.clock.run_for(1500)
+    check("once the knob moves, the bike's level shows under the suggestion", page.text_content("#resBike") == "Bike at 31", page.text_content("#resBike"))
+    check("turning the knob isn't flagged straight away", "alert" not in page.get_attribute("#resBox", "class"))
+    page.clock.run_for(4000)
+    check("a knob well below the suggestion says Turn up", "alert" in page.get_attribute("#resBox", "class") and page.text_content("#resLbl") == "Turn up",
+          f"suggests {page.text_content('#res')}, {page.text_content('#resLbl')}, at {page.evaluate('TAH.currentRide.state.distM'):.0f} m")
+    page.evaluate("__bt.res = 57"); page.clock.run_for(2000)
+    check("within 2 levels of the suggestion counts as matching", "alert" not in page.get_attribute("#resBox", "class") and page.text_content("#resLbl") == "Set resistance")
+    page.evaluate("__bt.res = 75"); page.clock.run_for(5000)
+    check("a knob well above says Turn down", page.text_content("#resLbl") == "Turn down")
+    page.evaluate("TAH.currentRide.jumpTo(100)"); page.clock.run_for(1000)
+    check("after a change down to the flat, a knob still too high says Turn down", page.text_content("#res") == "25" and page.text_content("#resLbl") == "Turn down", page.text_content("#res") + " " + page.text_content("#resLbl"))
+    page.evaluate("__bt.res = 15"); page.clock.run_for(1000)
+    check("overshooting the change straight away flips the label to Turn up", page.text_content("#resLbl") == "Turn up", page.text_content("#resLbl"))
+    page.click("#go"); page.clock.run_for(1000)
+    check("no alert while paused", "alert" not in page.get_attribute("#resBox", "class"))
+    page.click("#rideSettings")
+    page.select_option("#setResStep", "10"); page.clock.run_for(1000)
+    check("the step size is saved", json.loads(page.evaluate("localStorage.getItem('tah-settings')"))["resStep"] == 10)
+    page.go_back(); page.clock.run_for(1000)
+    check("with steps of 10 the suggestion is a multiple of 10", int(page.text_content("#res")) % 10 == 0, page.text_content("#res"))
+    no_errors(page); ctx.close()
+
+
 def suite_upgrade(browser, base):
     """Routes saved by the very first version (elevation only, database v1) still work and upgrade."""
     ctx, page = new_page(browser, clock=False, bt=False)
@@ -496,7 +545,7 @@ def suite_offline(browser, base):
         shutil.rmtree(tmp, ignore_errors=True)
 
 
-SUITES = {"ride": suite_ride, "upgrade": suite_upgrade, "profile": suite_profile, "strava": suite_strava, "pages": suite_pages,
+SUITES = {"ride": suite_ride, "resistance": suite_resistance, "upgrade": suite_upgrade, "profile": suite_profile, "strava": suite_strava, "pages": suite_pages,
           "tabs": suite_tabs, "layout": suite_layout, "startup": suite_startup, "offline": suite_offline}
 
 

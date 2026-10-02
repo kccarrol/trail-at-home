@@ -4,18 +4,21 @@
    Tests drive it through window.__bt:
      __bt.power = 200   watts in the next notifications
      __bt.cad = 80      cadence in rpm
+     __bt.res = 40      resistance level the bike reports (null: the bike doesn't report one)
      __bt.drop()        the bike disconnects and refuses to reconnect
      __bt.restore()     the bike accepts reconnects again */
 (() => {
-  const bt = window.__bt = { power: 0, cad: 80, allow: true, notes: 0 };
+  const bt = window.__bt = { power: 0, cad: 80, res: null, allow: true, notes: 0 };
   const ch = new EventTarget(), svc = { getCharacteristic: async () => ch };
   let iv = null;
   ch.startNotifications = async () => {
     clearInterval(iv);
     iv = setInterval(() => {
-      // Indoor Bike Data: flags = more data (no speed) | cadence | power
-      const v = new DataView(new ArrayBuffer(8));
-      v.setUint16(0, 1 | 4 | 64, true); v.setUint16(2, bt.cad * 2, true); v.setInt16(4, bt.power, true);
+      // Indoor Bike Data: flags = more data (no speed) | cadence | power, plus resistance level if set
+      const r = bt.res !== null, v = new DataView(new ArrayBuffer(r ? 8 : 6)); let o = 4;
+      v.setUint16(0, 1 | 4 | 64 | (r ? 32 : 0), true); v.setUint16(2, bt.cad * 2, true);
+      if (r) { v.setInt16(o, bt.res, true); o += 2; }
+      v.setInt16(o, bt.power, true);
       ch.value = v; bt.notes++; ch.dispatchEvent(new Event("characteristicvaluechanged"));
     }, 1000);
     return ch;

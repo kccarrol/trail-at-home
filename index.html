@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Trail at Home</title>
 <meta name="theme-color" content="#0F1612">
-<meta name="app-version" content="18">
+<meta name="app-version" content="19">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -268,13 +268,16 @@ summary{font-weight:600;cursor:pointer}
 .big{font-family:var(--display);font-weight:800;font-size:clamp(58px,20vw,124px);line-height:.9;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
 .big small{font-size:.42em;font-weight:600;margin-left:2px}
 .res{text-align:right}
-.res .big{transition:color .3s}
 .lbl{font-size:15px;opacity:.85;display:block;margin-top:4px}
-.dir{display:inline-block;margin-left:4px;opacity:0}
-.res.bump .big{animation:bump 1.4s ease-out}
-.res.bump .dir{animation:fade 1.4s ease-out}
-@keyframes bump{0%,30%{color:var(--gear)}100%{color:inherit}}
-@keyframes fade{0%,60%{opacity:1}100%{opacity:0}}
+.dir{display:inline-block;margin-left:2px}
+.bikeres{display:block;font-size:14px;opacity:.85}
+.bikeres:empty{display:none}
+/* Time to turn the knob: a solid yellow block that pulses, with Turn up / Turn down */
+.res{border-radius:var(--r-md);padding:6px 10px;margin:-6px -10px;transition:background-color .2s}
+.res.alert{background:var(--gear);color:#1A1405;animation:respulse 1s ease-in-out 3}
+.res.alert .lbl,.res.alert .bikeres{opacity:1;font-weight:700}
+.res.alert .dir{font-size:1.25em;line-height:1}
+@keyframes respulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
 .speed{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:stretch;gap:10px;margin-top:10px;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);padding:10px}
 .speed button{background:var(--accent);color:#fff;border:0;border-radius:var(--r-md);width:clamp(62px,18vw,104px);min-height:96px;font-family:var(--display);font-size:56px;font-weight:600;line-height:1;touch-action:manipulation;user-select:none;-webkit-user-select:none}
 .speed button:active{transform:scale(.96)}
@@ -335,7 +338,7 @@ summary{font-weight:600;cursor:pointer}
 .in-ride .ahead canvas{position:absolute;inset:0}
 .in-ride .ridebar{margin-top:10px}
 /* Very short screens: tighten the speed box so the map keeps a usable height */
-@media (max-height:700px){.in-ride .speed{padding:6px}.in-ride .speed button{min-height:68px;font-size:44px}.in-ride .live,.in-ride .stats,.in-ride .profiles{margin-top:8px}.in-ride .spdval .lbl{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.in-ride .sign{padding:10px 14px 12px}.in-ride .sign .big{font-size:64px}}
+@media (max-height:700px){.in-ride .speed{padding:6px}.in-ride .speed button{min-height:68px;font-size:44px}.in-ride .live,.in-ride .stats,.in-ride .profiles{margin-top:8px}.in-ride .spdval .lbl{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.in-ride .sign{padding:10px 14px 12px}.in-ride .sign .big{font-size:64px}.in-ride .ahead{flex-basis:58px}}
 .pauseframe{display:none;position:fixed;inset:0;z-index:20;pointer-events:none;border:5px solid var(--gear)}
 .ride-paused .pauseframe{display:block}
 .pauseframe span{position:absolute;top:0;left:50%;transform:translateX(-50%);background:var(--gear);color:#1A1405;font-weight:700;font-size:15px;line-height:1.2;padding:2px 16px 5px;border-radius:0 0 10px 10px;white-space:nowrap}
@@ -461,7 +464,7 @@ summary{font-weight:600;cursor:pointer}
     <p>On the bike's screen, go to Programs and start the third-party app workout, then tap Connect bike and pick the bike. The app reads power, cadence and speed, and heart rate if you connect a monitor. If the bike disconnects mid-ride, the ride carries on as if you'd stopped pedaling while the app reconnects.</p>
     <h2>How speed and resistance work</h2>
     <p>When the bike shares power, your speed is worked out from your watts, your weight (plus 13 kg of bike) and the trail's grade, as if riding a mountain bike on hardpacked dirt. Climbs slow you down, descents carry momentum, and speed tops out at <span id="capNote">56 mph</span>.</p>
-    <p>The suggested resistance is your flat-ground level plus a number of levels for each 1% of grade (half as much on descents). Hill difficulty in Settings scales both the speed effect and the suggestion.</p>
+    <p>The suggested resistance is your flat-ground level plus a number of levels for each 1% of grade (half as much on descents), using the average grade of the road around you, looking a little ahead (75 m behind to 125 m in front). It moves in steps (5 levels unless you change it in Settings) and changes at most every 20 seconds unless the road changes a lot, so you aren't turning the knob all the time. When it changes, the box turns yellow and says Turn up or Turn down. Hill difficulty in Settings scales both the speed effect and the suggestion.</p>
     <h2>While you ride</h2>
     <ul>
       <li>While you ride, the route name and Riding label are hidden to give the trail more room. Settings is the gear button next to Finish. Mid-ride, its This ride section connects the bike or heart rate monitor, and matches the distance on your console.</li>
@@ -513,10 +516,11 @@ summary{font-weight:600;cursor:pointer}
       </label>
       <label>Resistance on flat ground<input type="number" id="setFlat" min="1" max="100" step="1"></label>
       <label>Levels added per 1% of grade<input type="number" id="setStep" min="0" max="20" step="0.5"></label>
+      <label>Change resistance in steps of<select id="setResStep"><option value="1">1 level</option><option value="2">2 levels</option><option value="5">5 levels</option><option value="10">10 levels</option></select></label>
       <label>Highest level on your bike<input type="number" id="setMax" min="1" max="200" step="1"></label>
       <label><span id="weightL">Your weight (lb)</span><input type="number" id="setWeight" min="20" max="700" step="1"></label>
     </div>
-    <p class="small" id="diffHelp">Hill difficulty sets how much of each hill you feel: 100% is true to the route, 50% makes hills half as steep, 0% rides flat. Example: with 25 on flat ground and 4 levels per 1%, a 6% climb suggests 49.</p>
+    <p class="small" id="diffHelp">Hill difficulty sets how much of each hill you feel: 100% is true to the route, 50% makes hills half as steep, 0% rides flat. Example: with 25 on flat ground and 4 levels per 1%, a 6% climb works out at 49, shown as 50 with steps of 5. If your bike reports its resistance level, the ride page shows it and turns yellow until the knob matches.</p>
     <h2>Display</h2>
     <div class="grid">
       <label>Units<select id="setUnits"><option value="mi">Miles and feet</option><option value="km">Kilometers and meters</option></select></label>
@@ -571,7 +575,8 @@ summary{font-weight:600;cursor:pointer}
       </div>
       <div class="res" id="resBox">
         <div class="big" id="res">25</div>
-        <span class="lbl">Set resistance <span class="dir" id="resDir" aria-hidden="true"></span></span>
+        <span class="lbl"><span id="resLbl" aria-live="polite">Set resistance</span> <span class="dir" id="resDir" aria-hidden="true"></span></span>
+        <span class="bikeres" id="resBike"></span>
       </div>
     </section>
 
@@ -634,6 +639,7 @@ summary{font-weight:600;cursor:pointer}
 <script src="routePrep.js"></script>
 <script src="speedModel.js"></script>
 <script src="rideSession.js"></script>
+<script src="resistance.js"></script>
 <script src="tcx.js"></script>
 <script src="rideStore.js"></script>
 <script src="strava.js"></script>

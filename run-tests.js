@@ -7,6 +7,7 @@ const { createRideSession } = require("./rideSession.js");
 const { detectClimbs, climbAt } = require("./climbs.js");
 const pc = require("./profileCanvas.js");
 const { buildTcx, summarize } = require("./tcx.js");
+const { avgGrade, roundToStep, createResistanceCoach, createKnobReader, bikeOffBy } = require("./resistance.js");
 const { createStrava } = require("./strava.js");
 
 let failed = 0;
@@ -232,6 +233,51 @@ test("route-list preview keeps shape, peak and total", () => {
   assert.ok(Math.abs(Math.max(...pv.e) - r.maxEleM) < 0.2);
   const short = pc.makePreview(routeFrom([[300, 4]]), 96);
   assert.equal(short.e.length, 96); assert.ok(short.e.every(Number.isFinite));
+});
+
+console.log("Suggested resistance");
+test("the suggestion averages the grade from 75 m behind to 125 m ahead", () => {
+  const r = { gridStepM: 10, n: 101, grade: Array.from({ length: 101 }, (_, i) => i < 50 ? 0 : 6) };
+  assert.equal(avgGrade(r, 0), 0);                                  // 0..125 m is all flat
+  assert.ok(Math.abs(avgGrade(r, 450) - 6 * 9 / 21) < 1e-9);        // samples 38..58: 9 of 21 climb
+  assert.equal(avgGrade(r, 1000), 6);                               // the end of the route is clamped
+});
+test("levels round to steps of 5 and stay within 1 and the bike's top level", () => {
+  assert.equal(roundToStep(49, 5, 100), 50); assert.equal(roundToStep(22.4, 5, 100), 20);
+  assert.equal(roundToStep(1.5, 5, 100), 1); assert.equal(roundToStep(99, 5, 100), 100);
+  assert.equal(roundToStep(23, 1, 100), 23); assert.equal(roundToStep(36, 10, 32), 32);
+});
+test("the level holds between steps, waits 20 s between changes, but jumps for a big change", () => {
+  const c = createResistanceCoach({ stepSize: 5, max: 100 });
+  assert.deepEqual(c.next(25, 0), { level: 25, changed: false, up: false });
+  assert.equal(c.next(28.5, 30).changed, false);                   // past halfway but not by enough: holds
+  assert.deepEqual(c.next(29.5, 31), { level: 30, changed: true, up: true });
+  assert.equal(c.next(25.5, 40).changed, false);                   // only 9 s since the last change
+  assert.deepEqual(c.next(25.5, 52), { level: 25, changed: true, up: false });
+  assert.deepEqual(c.next(36, 53), { level: 35, changed: true, up: true });   // two steps at once: no wait
+  c.reset(); assert.equal(c.next(61, 54).level, 60);
+});
+test("a road wobbling around a step boundary doesn't make the level flip-flop", () => {
+  const c = createResistanceCoach({ stepSize: 5, max: 100 });
+  let changes = 0; c.next(27.5, 0);
+  for (let t = 1; t < 600; t++) if (c.next(27.5 + 1.4 * Math.sin(t / 7), t).changed) changes++;
+  assert.equal(changes, 0);
+});
+test("a bike's level is trusted only once it moves; zero and nonsense readings are ignored", () => {
+  const k = createKnobReader();
+  assert.equal(k.feed(0, 100), false); assert.equal(k.feed(5000, 100), false);
+  k.feed(30, 100); k.feed(30, 100); assert.equal(k.level(), null);        // a fixed value could be a placeholder
+  k.feed(35, 100); assert.equal(k.level(), 35);
+});
+test("a bike that reports tenths of a level is read in tenths from then on", () => {
+  const k = createKnobReader();
+  k.feed(250, 100); k.feed(305, 100); assert.equal(k.level(), 31);
+  k.feed(90, 100); assert.equal(k.level(), 9);                            // still tenths below the top level
+});
+test("the bike's knob counts as matching within 2 levels for steps of 5", () => {
+  assert.equal(bikeOffBy(47, 45, 5), 0); assert.equal(bikeOffBy(43, 45, 5), 0);
+  assert.equal(bikeOffBy(48, 45, 5), 3); assert.equal(bikeOffBy(40, 45, 5), -5);
+  assert.equal(bikeOffBy(41, 45, 10), 0); assert.equal(bikeOffBy(48, 45, 1), 3);
 });
 
 console.log("Strava export and upload");

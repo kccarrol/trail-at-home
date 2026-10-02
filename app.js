@@ -10,13 +10,13 @@ const $ = id => document.getElementById(id);
 const TAH = window.TAH;
 
 // Must match <meta name="app-version"> in index.html (and is bumped with sw.js's cache version).
-const APP_VERSION = "18";
+const APP_VERSION = "19";
 {
   const page = document.querySelector('meta[name="app-version"]');
   if (!page || page.content !== APP_VERSION) throw new Error(`index.html and app.js are from different versions (${page ? page.content : "older"} and ${APP_VERSION}). Upload both from the same zip.`);
   // Each helper file must have loaded; name the first one that didn't.
   const need = { "climbs.js": "detectClimbs", "profileCanvas.js": "drawProfile", "routePrep.js": "prepareRoute", "speedModel.js": "makeSettings",
-    "rideSession.js": "createRideSession", "tcx.js": "buildTcx", "rideStore.js": "createRideStore", "strava.js": "createStrava" };
+    "rideSession.js": "createRideSession", "resistance.js": "createResistanceCoach", "tcx.js": "buildTcx", "rideStore.js": "createRideStore", "strava.js": "createStrava" };
   for (const f in need) if (!TAH || typeof TAH[need[f]] !== "function") throw new Error(`The file ${f} is missing or out of date. Upload it with the other app files.`);
 }
 const STEP = TAH.GRID_STEP_M;            // routes are resampled every 10 m
@@ -52,6 +52,7 @@ function sanitize(o) {
   o.max = n(o.max, 100, 1, 200);
   o.flat = n(o.flat, 25, 1, o.max);
   o.step = n(o.step, 4, 0, 20);
+  o.resStep = [1, 2, 5, 10].includes(+o.resStep) ? +o.resStep : 5;   // the suggestion moves in steps this big
   o.speed = n(o.speed, 16.09, 0, 80);      // km/h, used when speed is set by hand
   o.weight = n(o.weight, 72, 30, 250);     // kg, rider only (the model adds 13 kg of bike)
   o.difficulty = n(o.difficulty, 100, 0, 100);   // % of each hill's steepness felt in speed and resistance
@@ -148,8 +149,9 @@ const storageMsg = e => e && e.name === "QuotaExceededError"
 /* ========== GPX reading ========== */
 const RouteError = TAH.RouteError;
 function cls(g) { if (g <= -2) return "descent"; if (g < 3) return "easy"; if (g < 6) return "moderate"; if (g < 10) return "hard"; return "extreme"; }
-// Suggested knob setting. Difficulty scales the hill part, so an easier day suggests less resistance too.
-function resFor(g) { const d = g * S.difficulty / 100, r = d >= 0 ? S.flat + d * S.step : S.flat + d * S.step * 0.5; return clamp(Math.round(r), 1, S.max); }
+// Suggested knob setting before rounding to a step (resistance.js does that, and holds it steady).
+// Difficulty scales the hill part, so an easier day suggests less resistance too.
+function resFor(g) { const d = g * S.difficulty / 100, r = d >= 0 ? S.flat + d * S.step : S.flat + d * S.step * 0.5; return clamp(r, 1, S.max); }
 
 // Reads a GPX file into its name and raw points; routePrep.js does the rest.
 function parseGPX(text, fallbackName) {
@@ -352,15 +354,18 @@ $("routes").addEventListener("click", async ev => {
    shows its state and handles the buttons. */
 const R = {
   meta: null, route: null, session: null, log: null, wake: null, lastSave: 0,
-  resShown: null, clsShown: null, resumeAfterSheet: false
+  resShown: null, clsShown: null, resumeAfterSheet: false,
+  coach: null, resChangeT: 0, resUp: false, offSince: 0
 };
+const RES_HIGHLIGHT_MS = 8000;           // how long a change stays highlighted when the bike doesn't report its level
+const RES_OFF_MS = 3000;                 // the knob must be off for this long before the box says so (not while turning it)
 
 // Loads a route into the ride page. The caller shows the page (see beginRide).
 async function openRide(m) {
   if (R.session) closeRide();                          // never two ride clocks at once
   const p = await getProfile(m.id);
   if (!p) { setError("That route's data is missing. Try adding it again."); return false; }
-  R.meta = m; R.route = preparedFrom(p); R.log = null; R.resShown = null; R.clsShown = null;
+  R.meta = m; R.route = preparedFrom(p); R.log = null; R.resShown = null; R.clsShown = null; resetResistance();
   P.dismissed.clear(); P.yr = null; U.lastRideId = null;
   R.session = TAH.createRideSession({
     route: R.route, startDistM: m.pos || 0, stats: m.stats,
@@ -545,14 +550,7 @@ function update() {
   const gv = Math.abs(g) < 0.05 ? 0 : g;
   setText("grade", (gv < 0 ? "−" : "") + Math.abs(gv).toFixed(1));
 
-  // Resistance only changes when the target moves by a noticeable amount, so the number
-  // doesn't flicker; each change flashes with an arrow while riding.
-  const target = resFor(g), band = Math.max(1, Math.round(S.max / 50));
-  if (R.resShown === null || Math.abs(target - R.resShown) >= band || target === 1 || target === S.max) {
-    if (R.resShown !== null && target !== R.resShown && st.running) flashRes(target > R.resShown);
-    R.resShown = target;
-  }
-  setText("res", R.resShown);
+  showResistance(st);
 
   setText("spd", spdOut(md === "manual" ? S.speed : st.speedMps * 3.6));
   setText("spdL", sUnit() + ({ manual: ", match your console", power: ", from your power", bike: ", from your bike" })[md]);
@@ -575,10 +573,37 @@ function update() {
   if (st.running && now - R.lastSave > 5000) { saveProgress(); R.lastSave = now; }
 }
 
-function flashRes(up) {
-  const box = $("resBox");
-  $("resDir").textContent = up ? "▲" : "▼";
-  box.classList.remove("bump"); void box.offsetWidth; box.classList.add("bump");
+/* --- Suggested resistance ---
+   Follows the average grade of the road just ahead in steps (resistance.js). A change turns the box
+   yellow with "Turn up" or "Turn down". If the bike reports its resistance level, the box stays yellow
+   until the knob matches, and also turns yellow whenever the knob drifts off; otherwise the
+   highlight lasts a few seconds. */
+function resetResistance() {
+  R.coach = TAH.createResistanceCoach({ stepSize: S.resStep, max: S.max });
+  R.resShown = null; R.resChangeT = 0; R.offSince = 0;
+}
+// The bike's knob position, if it reports one (see createKnobReader in resistance.js).
+function bikeRes() { return BT.bike && live.hasRes && fresh(live.resT) ? live.knob.level() : null; }
+function showResistance(st) {
+  const now = performance.now();
+  const raw = resFor(TAH.avgGrade(R.route, st.distM));
+  const n = R.coach.next(raw, now / 1000);
+  if (n.changed && st.running) { R.resChangeT = now; R.resUp = n.up; }
+  R.resShown = n.level;
+  setText("res", R.resShown);
+
+  const bike = bikeRes(), off = bike === null ? 0 : TAH.bikeOffBy(bike, R.resShown, S.resStep);
+  if (!off || !st.running) R.offSince = 0; else if (!R.offSince) R.offSince = now;
+  const knobOff = !!off && now - R.offSince >= RES_OFF_MS;
+  // Just changed: highlight until the knob matches (bike reports) or for a few seconds (it doesn't).
+  const justChanged = R.resChangeT && st.running && (bike === null ? now - R.resChangeT < RES_HIGHLIGHT_MS : !!off);
+  if (!justChanged) R.resChangeT = 0;     // done with that change: matched, or its few seconds are up
+  const alert = st.running && (justChanged || knobOff);
+  const up = off ? off < 0 : R.resUp;     // the knob's real position wins over the direction of the change
+  $("resBox").classList.toggle("alert", alert);
+  setText("resDir", alert ? (up ? "▲" : "▼") : "");
+  setText("resLbl", alert ? (up ? "Turn up" : "Turn down") : "Set resistance");
+  setText("resBike", bike === null ? "" : `Bike at ${bike}`);
 }
 
 function showAutoPause() { update(); }
@@ -685,7 +710,7 @@ $("strip").addEventListener("click", e => {
 
 /* --- Settings panel --- */
 function showSettings() {
-  $("setFlat").value = S.flat; $("setStep").value = S.step; $("setMax").value = S.max; $("setUnits").value = S.units;
+  $("setFlat").value = S.flat; $("setStep").value = S.step; $("setResStep").value = S.resStep; $("setMax").value = S.max; $("setUnits").value = S.units;
   $("setWeight").value = $("setWeight").dataset.shown = Math.round(isMi() ? S.weight / KG_PER_LB : S.weight);
   $("weightL").textContent = isMi() ? "Your weight (lb)" : "Your weight (kg)";
   $("setDiff").value = S.difficulty; $("diffVal").textContent = Math.round(S.difficulty) + "%";
@@ -695,16 +720,16 @@ function showSettings() {
 }
 function readSettings() {
   const v = id => parseFloat($(id).value);
-  S.max = v("setMax"); S.flat = v("setFlat"); S.step = v("setStep"); S.difficulty = v("setDiff"); S.ahead = v("setAhead");
+  S.max = v("setMax"); S.flat = v("setFlat"); S.step = v("setStep"); S.resStep = v("setResStep"); S.difficulty = v("setDiff"); S.ahead = v("setAhead");
   // Only take the weight if its box was edited; it shows a rounded number, so re-reading it would drift.
   const w = v("setWeight"); if (Number.isFinite(w) && $("setWeight").value !== $("setWeight").dataset.shown) S.weight = isMi() ? w * KG_PER_LB : w;
   applySettings();
 }
 function applySettings() {
-  sanitize(S); saveSettings(); showSettings(); R.resShown = null; shown.clear(); R.clsShown = null; P.yr = null; update(); layoutProfiles();
+  sanitize(S); saveSettings(); showSettings(); resetResistance(); shown.clear(); R.clsShown = null; P.yr = null; update(); layoutProfiles();
 }
 showSettings();
-["setFlat", "setStep", "setMax", "setWeight", "setDiff", "setAhead"].forEach(id => $(id).addEventListener("change", readSettings));
+["setFlat", "setStep", "setResStep", "setMax", "setWeight", "setDiff", "setAhead"].forEach(id => $(id).addEventListener("change", readSettings));
 $("setDiff").addEventListener("input", () => { $("diffVal").textContent = Math.round($("setDiff").value) + "%"; });
 $("setUnits").addEventListener("change", () => { S.units = $("setUnits").value; applySettings(); });
 
@@ -713,7 +738,7 @@ $("setUnits").addEventListener("change", () => { S.units = $("setUnits").value; 
    heart rate), Cycling Power (watts, cadence), Cycling Speed and Cadence, and Heart Rate. */
 const SVC = { ftms: 0x1826, cp: 0x1818, csc: 0x1816, hr: 0x180D };
 const CHR = { ftms: 0x2AD2, cp: 0x2A63, csc: 0x2A5B, hr: 0x2A37 };
-const live = { power: 0, powT: 0, cad: 0, cadT: 0, hr: 0, hrT: 0, spd: 0, spdT: 0, hasPower: false, hasSpeed: false, hasCad: false };
+const live = { power: 0, powT: 0, cad: 0, cadT: 0, hr: 0, hrT: 0, spd: 0, spdT: 0, knob: TAH.createKnobReader(), resT: 0, hasPower: false, hasSpeed: false, hasCad: false, hasRes: false };
 const BT = { bike: null, hr: null, bikeUserOff: false, hrUserOff: false, bikeLost: false };
 let lastCrank = null;
 const fresh = t => t > 0 && performance.now() - t < STALE_MS;
@@ -726,7 +751,8 @@ function setPower(w) { live.power = w; live.powT = performance.now(); live.hasPo
 function setCad(r) { live.cad = r; live.cadT = performance.now(); live.hasCad = true; }
 function setHr(b) { if (b > 20 && b < 250) { live.hr = b; live.hrT = performance.now(); } }
 function setSpeed(k) { live.spd = k; live.spdT = performance.now(); live.hasSpeed = true; }
-function resetBikeData() { Object.assign(live, { powT: 0, cadT: 0, spdT: 0, hasPower: false, hasSpeed: false, hasCad: false }); lastCrank = null; }
+function setRes(l) { if (live.knob.feed(l, S.max)) { live.resT = performance.now(); live.hasRes = live.knob.level() !== null; } }
+function resetBikeData() { Object.assign(live, { powT: 0, cadT: 0, spdT: 0, resT: 0, knob: TAH.createKnobReader(), hasPower: false, hasSpeed: false, hasCad: false, hasRes: false }); lastCrank = null; }
 
 // Cadence from crank revolution counts. Event time is in 1/1024 s; both counters wrap at 65536.
 function crank(revs, t) {
@@ -743,7 +769,7 @@ function parseFTMS(v) {                                  // Indoor Bike Data: fi
   if (f & 4) { setCad(v.getUint16(o, true) / 2); o += 2; }
   if (f & 8) o += 2;
   if (f & 16) o += 3;
-  if (f & 32) o += 2;
+  if (f & 32) { setRes(v.getInt16(o, true)); o += 2; }   // resistance level, where the bike reports it
   if (f & 64) { setPower(v.getInt16(o, true)); o += 2; }
   if (f & 128) o += 2;
   if (f & 256) o += 5;
@@ -799,7 +825,7 @@ async function pickDevice(options) {
 function describeBike() {
   if (!BT.bike) return;
   const name = BT.bike.name || "your bike";
-  const got = [live.hasPower && "power", live.hasCad && "cadence", fresh(live.hrT) && "heart rate", !live.hasPower && live.hasSpeed && "speed"].filter(Boolean);
+  const got = [live.hasPower && "power", live.hasCad && "cadence", live.hasRes && "resistance level", fresh(live.hrT) && "heart rate", !live.hasPower && live.hasSpeed && "speed"].filter(Boolean);
   if (live.hasPower) btMsg(`Connected to ${name}. Receiving ${joinList(got)}. Speed now comes from your watts.`);
   else if (live.hasSpeed) btMsg(`Connected to ${name}. Receiving ${joinList(got)}.`);
   else btMsg(got.length ? `Connected, receiving ${joinList(got)}, but no power or speed. Keep using + and −.` : "Connected, but no data yet. Start pedaling. If nothing appears, use + and −.");

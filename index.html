@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Trail at Home</title>
 <meta name="theme-color" content="#0F1612">
-<meta name="app-version" content="17">
+<meta name="app-version" content="18">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -258,7 +258,7 @@ summary{font-weight:600;cursor:pointer}
 .sumacts{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .sumacts button{flex:1 1 140px;padding:11px 14px}
 .sumacts .primary{font-size:20px}
-.sign{border-radius:var(--r-lg);color:#fff;padding:14px 16px 16px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-items:end;transition:background-color .4s;border:1px solid transparent}
+.sign{margin-top:10px;border-radius:var(--r-lg);color:#fff;padding:14px 16px 16px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-items:end;transition:background-color .4s;border:1px solid transparent}
 .sign[data-cls="easy"]{background:var(--green)}
 .sign[data-cls="moderate"]{background:var(--blue)}
 .sign[data-cls="hard"],.sign[data-cls="extreme"]{background:var(--black);border-color:#3A4A3F}
@@ -326,7 +326,8 @@ summary{font-weight:600;cursor:pointer}
 /* During a ride: no title bar or Riding label, so the trail gets the room. Paused: a yellow frame. */
 .in-ride #rideHead{display:none}
 .in-ride .rstate{position:absolute;width:1px;height:1px;margin:0;padding:0;overflow:hidden;clip:rect(0 0 0 0);border:0}  /* still read out by screen readers */
-.in-ride .sign{margin-top:4px}
+.in-ride .profiles{margin-top:4px}
+.in-ride.ride-paused .profiles{margin-top:24px}   /* room for the Paused tag above the climb callout */
 .pauseframe{display:none;position:fixed;inset:0;z-index:20;pointer-events:none;border:5px solid var(--gear)}
 .ride-paused .pauseframe{display:block}
 .pauseframe span{position:absolute;top:0;left:50%;transform:translateX(-50%);background:var(--gear);color:#1A1405;font-weight:700;font-size:15px;line-height:1.2;padding:2px 16px 5px;border-radius:0 0 10px 10px;white-space:nowrap}
@@ -554,6 +555,17 @@ summary{font-weight:600;cursor:pointer}
       <p class="upmsg" id="sumMsg" role="status"></p>
     </section>
 
+    <!-- The trail ahead sits at the top during a ride -->
+    <section class="profiles" id="profiles" aria-label="Elevation profile">
+      <div class="ahead">
+        <canvas id="ahead" role="img" aria-label="Elevation of the route just ahead"></canvas>
+        <div class="readout"><b id="aGrade">0.0%</b><span id="aEle"></span></div>
+        <p class="noele" id="noEle" hidden>No elevation data</p>
+        <button class="callout" id="callout" aria-label="Upcoming climb. Tap to hide." hidden></button>
+      </div>
+      <canvas class="strip" id="strip" role="img" aria-label="The whole route. Tap to jump to that spot."></canvas>
+    </section>
+
     <section class="sign" id="sign" data-cls="easy" aria-label="Current trail conditions">
       <div class="top"><span id="sym"></span><span id="diff">Easy</span></div>
       <div>
@@ -578,16 +590,6 @@ summary{font-weight:600;cursor:pointer}
       <div><b id="mHr">–</b><span>bpm</span></div>
     </div>
     <div class="banner lost" id="lostBanner" role="status" hidden><span id="lostText">Bike disconnected. Reconnecting…</span><button id="lostManual">Use + and −</button></div>
-
-    <section class="profiles" id="profiles" aria-label="Elevation profile">
-      <div class="ahead">
-        <canvas id="ahead" role="img" aria-label="Elevation of the route just ahead"></canvas>
-        <div class="readout"><b id="aGrade">0.0%</b><span id="aEle"></span></div>
-        <p class="noele" id="noEle" hidden>No elevation data</p>
-        <button class="callout" id="callout" aria-label="Upcoming climb. Tap to hide." hidden></button>
-      </div>
-      <canvas class="strip" id="strip" role="img" aria-label="The whole route. Tap to jump to that spot."></canvas>
-    </section>
 
     <div class="stats">
       <div><b id="sDist">0.00</b><span id="sDistL">mi ridden</span></div>

@@ -134,6 +134,12 @@ function createRideSession(o) {
       if (autoPaused) { autoPaused = false; onAutoPause(false); }
       flush(); onState(refresh());
     },
+    // Tapping Resume while auto-paused: the clock runs again; it auto-pauses again if the
+    // rider still doesn't pedal.
+    resume() {
+      if (!running || !autoPaused) return;
+      autoPaused = false; stillS = 0; lastT = now(); onAutoPause(false); onState(refresh());
+    },
     tick,
     // Move to a spot on the route (tapping the profile, matching the console, restarting).
     jumpTo(d) { distM = clamp(d, 0, route.totalDistM); speedMps = 0; onState(refresh()); },

@@ -10,7 +10,7 @@ const $ = id => document.getElementById(id);
 const TAH = window.TAH;
 
 // Must match <meta name="app-version"> in index.html (and is bumped with sw.js's cache version).
-const APP_VERSION = "16";
+const APP_VERSION = "17";
 {
   const page = document.querySelector('meta[name="app-version"]');
   if (!page || page.content !== APP_VERSION) throw new Error(`index.html and app.js are from different versions (${page ? page.content : "older"} and ${APP_VERSION}). Upload both from the same zip.`);
@@ -537,7 +537,7 @@ function update() {
     $("scr-ride").classList.toggle("in-ride", inRide);
     $("pauseTag").textContent = state === "auto" ? "Auto-paused: pedal to carry on" : "Paused";
   }
-  setText("go", st.running ? "Pause" : inRide ? "Resume" : done ? "Ride again" : st.distM > 50 ? "Continue route" : "Start");
+  setText("go", state === "auto" ? "Resume" : st.running ? "Pause" : inRide ? "Resume" : done ? "Ride again" : st.distM > 50 ? "Continue route" : "Start");
   $("endRide").hidden = !inRide;
   if (!inRide && !$("endSheet").hidden) closeEndSheet();
 
@@ -649,7 +649,12 @@ document.addEventListener("visibilitychange", () => {
 });
 setInterval(() => { if (R.session && !R.session.state.running && (BT.bike || BT.hr)) update(); }, 1000);  // keep live numbers fresh while paused
 
-$("go").addEventListener("click", () => R.session.state.running ? stop() : start());
+// Auto-paused shows Resume rather than Pause: tapping it starts the clock again.
+$("go").addEventListener("click", () => {
+  const st = R.session.state;
+  if (st.running && st.autoPaused) { R.session.resume(); lockScreen(); }
+  else if (st.running) stop(); else start();
+});
 
 // Hold + or − to keep changing speed.
 function changeSpeed(dir) {

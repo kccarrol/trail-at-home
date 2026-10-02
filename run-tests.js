@@ -147,6 +147,17 @@ test("auto-pause after 5 s at 0 W and standing still, resume on pedaling", () =>
   w = 150; run(5);
   assert.deepEqual(events.pauses, [true, false]); assert.ok(s.state.elapsedS > frozen && s.state.speedMps > 0);
 });
+test("resume() ends an auto-pause; it auto-pauses again if still not pedaling", () => {
+  const r = flatRoute(10000); let w = 200;
+  const { s, run, events } = fakeRide(r, () => ({ mode: "power", powerW: w }));
+  s.start(); run(30); w = 0; run(60);
+  assert.ok(s.state.autoPaused);
+  const frozen = s.state.elapsedS;
+  s.resume();
+  assert.ok(!s.state.autoPaused && s.state.running); assert.deepEqual(events.pauses, [true, false]);
+  run(2); assert.ok(s.state.elapsedS > frozen, "clock runs again");
+  run(10); assert.ok(s.state.autoPaused, "auto-pauses again without pedaling");
+});
 test("bike drop: 0 W coasts to a stop without resetting the ride", () => {
   const r = flatRoute(10000); let w = 200;
   const { s, run } = fakeRide(r, () => ({ mode: "power", powerW: w }));

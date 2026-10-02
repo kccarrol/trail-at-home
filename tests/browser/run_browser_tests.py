@@ -303,7 +303,7 @@ def suite_strava(browser, base):
 
 
 def suite_pages(browser, base):
-    """Home, Browse routes filters, the two-step start, ride states, Settings mid-ride, End ride."""
+    """Home, Browse routes filters, the two-step start, ride states, Settings mid-ride, Finish (route or for now)."""
     ctx, page = new_page(browser, viewport=(390, 860), clock=False)
     add_routes(page, base, [HILL(), LONG(), SHORT()])
     names = lambda: page.locator("#routes .route b").all_text_contents()
@@ -333,14 +333,46 @@ def suite_pages(browser, base):
     check("the tab bar is hidden mid-ride", page.is_hidden("#tabbar"))
     page.click("#scr-settings [data-back]"); page.clock.run_for(1000)
     check("Back to ride returns to the ride, still moving", visible_page(page) == "ride" and page.evaluate("TAH.currentRide.state.distM") - d0 > 50)
-    page.click("#endRide"); page.clock.run_for(1500); page.wait_for_timeout(300)
-    check("End ride saves it and shows a summary", page.text_content("#sumTitle") == "Ride saved" and page.text_content("#go") == "Continue route")
+    page.click("#endRide"); page.clock.run_for(500)
+    check("Finish pauses the ride and asks how to finish", page.is_visible("#endSheet") and page.is_hidden("#go")
+          and not page.evaluate("TAH.currentRide.state.running") and page.text_content("#keepRiding") == "Keep riding")
+    page.click("#keepRiding"); page.clock.run_for(500)
+    check("Keep riding closes the question and carries on", page.is_hidden("#endSheet") and page.evaluate("TAH.currentRide.state.running"))
+    page.click("#endRide"); page.click("#saveSpot"); page.clock.run_for(1500); page.wait_for_timeout(300)
+    check("Stop for now saves it and shows a summary", page.text_content("#sumTitle") == "Ride saved" and page.text_content("#go") == "Continue route"
+          and page.is_hidden("#endSheet") and page.is_hidden("#endRide"))
     page.click("#back"); page.clock.run_for(500); page.wait_for_timeout(300)
     check("Home features the route in progress", page.text_content("#hero .kicker") == "Continue your ride" and page.text_content("#hero h2") == "Test hill")
     page.click('#hero [data-hero="ride"]')
     check("Continue ride opens the bike step with Where you left off", page.is_visible("#step2") and page.is_visible("#fromBox"))
     page.check('input[name="from"][value="begin"]'); page.click("#beginRide"); page.wait_for_function("window.TAH.currentRide"); page.clock.run_for(500)
     check("The beginning restarts the route from 0", page.evaluate("TAH.currentRide.state.distM") < 20)
+    # Finish route part-way: the route is done, so Home stops offering to continue it.
+    page.clock.run_for(60_000); d1 = page.evaluate("TAH.currentRide.state.distM")
+    page.click("#endRide"); page.click("#finishRoute"); page.clock.run_for(1500); page.wait_for_timeout(300)
+    check("Finish route shows Ride finished", page.text_content("#sumTitle") == "Ride finished"
+          and page.get_attribute("#rideState", "data-state") == "finished" and page.text_content("#go") == "Ride again")
+    page.click("#back"); page.clock.run_for(500); page.wait_for_timeout(300)
+    check("Home no longer offers to continue a finished route",
+          page.text_content("#hero .kicker") != "Continue your ride" and "Ride it again" in page.text_content('#hero [data-hero="ride"]'))
+    page.click('#hero [data-hero="ride"]')
+    check("Riding it again starts from the beginning by default, with where you finished as an option",
+          page.is_visible("#fromBox") and page.is_checked('input[name="from"][value="begin"]') and page.text_content("#fromResumeL") == "Where you finished")
+    page.check('input[name="from"][value="resume"]'); page.click("#beginRide"); page.wait_for_function("window.TAH.currentRide"); page.clock.run_for(500)
+    check("Picking up where you finished continues from there", abs(page.evaluate("TAH.currentRide.state.distM") - d1) < 50)
+    page.click("#endRide"); page.click("#saveSpot"); page.clock.run_for(1500)
+    page.click("#back"); page.clock.run_for(500); page.wait_for_timeout(300)
+    check("...and the route is in progress again on Home", page.text_content("#hero .kicker") == "Continue your ride")
+    page.click('[data-tab="routes"]'); page.wait_for_timeout(200)
+    page.click('#routes [data-act="finish"]'); page.wait_for_timeout(300)
+    check("Mark finished on Routes marks it finished", "Finished at" in page.text_content("#routes .route .sub") and page.locator('#routes [data-act="finish"]').count() == 0)
+    page.click('[data-tab="home"]'); page.wait_for_timeout(300)
+    check("...and Home stops offering to continue it", page.text_content("#hero .kicker") != "Continue your ride")
+    page.click('#hero [data-hero="ride"]'); page.click("#beginRide"); page.wait_for_function("window.TAH.currentRide"); page.clock.run_for(30_000)
+    page.click("#endRide"); page.click("#finishRoute"); page.clock.run_for(1500)
+    page.locator("#strip").click(position={"x": 120, "y": 10}); page.clock.run_for(300)
+    check("Tapping the strip after finishing carries on from that spot", page.text_content("#go") == "Continue route"
+          and page.get_attribute("#rideState", "data-state") == "ready")
     no_errors(page); ctx.close()
 
 
@@ -376,7 +408,10 @@ def suite_layout(browser, base):
         page.evaluate("TAH.currentRide.jumpTo(500)"); page.wait_for_timeout(300)
         go = page.evaluate("document.getElementById('go').getBoundingClientRect().bottom")
         check(f"{w}x{h}: Pause and End ride are on screen", go <= h, f"bottom at {go:.0f}")
-        page.click("#endRide"); page.click("#back"); page.wait_for_timeout(400)
+        page.click("#endRide")
+        sheet = page.evaluate("document.getElementById('keepRiding').getBoundingClientRect().bottom")
+        check(f"{w}x{h}: the Finish choices are on screen", sheet <= h, f"bottom at {sheet:.0f}")
+        page.click("#saveSpot"); page.click("#back"); page.wait_for_timeout(400)
         tiles = page.evaluate("Math.max(...[...document.querySelectorAll('.tile')].map(t => t.getBoundingClientRect().bottom))")
         bar = page.evaluate("document.getElementById('tabbar').getBoundingClientRect().top")
         check(f"{w}x{h}: all Home buttons fit above the tab bar", tiles <= bar, f"{tiles - bar:.0f}px over")

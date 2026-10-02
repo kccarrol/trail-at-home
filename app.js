@@ -10,7 +10,7 @@ const $ = id => document.getElementById(id);
 const TAH = window.TAH;
 
 // Must match <meta name="app-version"> in index.html (and is bumped with sw.js's cache version).
-const APP_VERSION = "13";
+const APP_VERSION = "14";
 {
   const page = document.querySelector('meta[name="app-version"]');
   if (!page || page.content !== APP_VERSION) throw new Error(`index.html and app.js are from different versions (${page ? page.content : "older"} and ${APP_VERSION}). Upload both from the same zip.`);
@@ -222,27 +222,32 @@ function previewSvg(pv) {
 }
 
 // One route card. "manage" (Browse routes) has action buttons; "pick" (Start a ride) is tap-to-choose.
+// A route is finished when ridden to the end, or when the rider tapped Finish route part-way (m.done).
+// Only a route that is part-way and not finished counts as in progress (Home's Continue card).
+const reachedEnd = m => m.pos >= m.total - 5;
+const isDone = m => !!m.done || reachedEnd(m);
+const isGoing = m => !isDone(m) && m.pos > 50;
 function routeCard(m, mode) {
-  const finished = m.pos >= m.total - 5;
-  const pct = m.pos > 50 ? Math.min(100, m.pos / m.total * 100) : 0;
-  const where = finished ? "Finished." : m.pos > 50 ? `Stopped at ${fmtDShort(m.pos)}.` : "";
+  // The bar shows how far along an unfinished route is; a finished one says so instead.
+  const pct = isGoing(m) ? Math.min(100, m.pos / m.total * 100) : 0;
+  const where = reachedEnd(m) ? "Finished." : m.done ? `Finished at ${fmtDShort(m.pos)}.` : m.pos > 50 ? `Stopped at ${fmtDShort(m.pos)}.` : "";
   const [dn, du] = fmtDShort(m.total).split(" ");
   const climb = m.hasEle === false ? `<span>flat (no elevation in the GPX)</span>` : `<span><em>${fmtE(m.gain)}</em>${eUnit()} climbing</span>`;
   const id = esc(m.id);
   const acts = mode !== "manage" ? "" : `<div class="acts">
         <button data-act="ride" data-id="${id}">Ride</button><button data-act="rename" data-id="${id}">Rename</button>
-        ${m.pos > 50 ? `<button data-act="reset" data-id="${id}">Start over</button>` : ""}<button data-act="delete" data-id="${id}">Delete</button></div>`;
+        ${isGoing(m) ? `<button data-act="finish" data-id="${id}">Mark finished</button>` : ""}${m.pos > 50 ? `<button data-act="reset" data-id="${id}">Start over</button>` : ""}<button data-act="delete" data-id="${id}">Delete</button></div>`;
   return `<li class="route">
       <button class="open" data-id="${id}" ${mode === "static" ? "disabled" : ""}>
         <b>${esc(m.name)}</b>${previewSvg(m.preview)}
         <span class="stats2"><span><em>${esc(dn)}</em>${esc(du || "")}</span>${climb}</span>
-        ${where ? `<span class="sub">${where}</span>` : ""}
+        ${where ? `<span class="sub${isDone(m) ? " done" : ""}">${where}</span>` : ""}
         ${pct > 0 ? `<span class="prog"><i style="width:${pct.toFixed(1)}%"></i></span>` : ""}
       </button>${acts}
     </li>`;
 }
 const recency = m => Math.max(m.lastRidden || 0, m.added || 0);
-const routeState = m => m.pos >= m.total - 5 ? "done" : m.pos > 50 ? "going" : "new";
+const routeState = m => isDone(m) ? "done" : m.pos > 50 ? "going" : "new";
 // Length bands in the rider's units: under 6 mi / 6–20 mi / over 20 mi, or 10 / 30 km.
 const lengthBands = () => isMi() ? [6 * MI, 20 * MI, "under 6 mi", "6–20 mi", "over 20 mi"] : [10000, 30000, "under 10 km", "10–30 km", "over 30 km"];
 function fillLengthFilter() {
@@ -332,7 +337,10 @@ $("routes").addEventListener("click", async ev => {
       const name = prompt("Route name", m.name);
       if (name && name.trim()) { m.name = name.trim().slice(0, 120); await putMeta(m); drawLibrary(); }
     } else if (b.dataset.act === "reset") {
-      if (confirm(`Start "${m.name}" over from the beginning? Past rides stay in your history.`)) { m.pos = 0; m.stats = null; await putMeta(m); drawLibrary(); }
+      if (confirm(`Start "${m.name}" over from the beginning? Past rides stay in your history.`)) { m.pos = 0; m.stats = null; m.done = false; await putMeta(m); drawLibrary(); }
+    } else if (b.dataset.act === "finish") {
+      m.done = true; await putMeta(m); drawLibrary();
+      setStatus(`"${m.name}" is marked finished, so Home won't offer to continue it. Ride it again any time.`);
     } else if (b.dataset.act === "delete") {
       if (confirm(`Delete "${m.name}"? This can't be undone.`)) { await deleteRoute(m.id); metas = metas.filter(x => x !== m); setStatus(""); drawLibrary(); }
     } else pickForRide(m);                               // "Ride" or a tap on the card: straight to connecting the bike
@@ -344,7 +352,7 @@ $("routes").addEventListener("click", async ev => {
    shows its state and handles the buttons. */
 const R = {
   meta: null, route: null, session: null, log: null, wake: null, lastSave: 0,
-  resShown: null, clsShown: null
+  resShown: null, clsShown: null, resumeAfterSheet: false
 };
 
 // Loads a route into the ride page. The caller shows the page (see beginRide).
@@ -362,7 +370,7 @@ async function openRide(m) {
   TAH.currentRide = R.session;
   shown.clear();
   $("title").textContent = m.name;
-  $("summary").hidden = true;
+  $("summary").hidden = true; closeEndSheet();
   $("noEle").hidden = R.route.hasElevation;
   return true;
 }
@@ -518,16 +526,18 @@ function update() {
   const st = ses.state, g = st.grade, c = cls(g), md = speedMode();
 
   // Where the ride stands: Ready, Riding, Auto-paused, Paused (a ride in progress), Finished.
-  const inRide = !!R.log;
-  const state = st.finished && !st.running ? "finished" : st.running ? (st.autoPaused ? "auto" : "riding") : inRide ? "paused" : "ready";
+  const inRide = !!R.log, done = st.finished || R.meta.done;
+  const state = done && !st.running ? "finished" : st.running ? (st.autoPaused ? "auto" : "riding") : inRide ? "paused" : "ready";
   const words = { ready: st.distM > 50 ? `Ready to continue from ${fmtDShort(st.distM)}` : "Ready",
-    riding: "Riding", auto: "Auto-paused: start pedaling to carry on", paused: "Paused", finished: "Route finished" }[state];
+    riding: "Riding", auto: "Auto-paused: start pedaling to carry on", paused: "Paused",
+    finished: st.finished ? "Route finished" : `Route finished at ${fmtDShort(st.distM)}` }[state];
   if (shown.get("rstate") !== words) {
     shown.set("rstate", words); $("rideState").dataset.state = state; $("rideState").textContent = words;
     $("scr-ride").classList.toggle("ride-paused", state === "paused" || state === "auto");
   }
-  setText("go", st.running ? "Pause" : inRide ? "Resume" : st.finished ? "Ride again" : st.distM > 50 ? "Continue route" : "Start");
+  setText("go", st.running ? "Pause" : inRide ? "Resume" : done ? "Ride again" : st.distM > 50 ? "Continue route" : "Start");
   $("endRide").hidden = !inRide;
+  if (!inRide && !$("endSheet").hidden) closeEndSheet();
 
   if (c !== R.clsShown) { R.clsShown = c; $("sign").dataset.cls = c; $("sym").innerHTML = SYM[c]; setText("diff", NAMES[c]); }
   const gv = Math.abs(g) < 0.05 ? 0 : g;
@@ -572,13 +582,15 @@ function flashRes(up) {
 function showAutoPause() { update(); }
 
 // Summary of the ride just ended (from its own log, so it matches history and the Strava upload).
-function showSummary(sum, routeDone) {
+// how: "end" (rode to the end of the route), "finish" (tapped Finish route part-way), "save" (spot kept).
+function showSummary(sum, how) {
   const avg = sum.movingS > 0 ? sum.distM / sum.movingS * 3.6 : 0;
   let t = `${fmtT(sum.movingS)} of riding over ${fmtDShort(sum.distM)}, averaging ${spdOut(avg)} ${sUnit()}`;
   if (sum.avgPowerW != null) t += ` and ${Math.round(sum.avgPowerW)} watts`;
   t += sum.ascentM > 1 ? `. You climbed ${fmtE(sum.ascentM)} ${eUnit()}.` : ".";
-  if (!routeDone) t += " Your spot on the route is saved, so you can continue it any time.";
-  $("sumTitle").textContent = routeDone ? "Route finished" : "Ride saved";
+  if (how === "save") t += " Your spot on the route is saved, so you can continue it any time.";
+  if (how === "finish") t += ` The route is marked finished at ${fmtDShort(R.session.state.distM)} of ${fmtDShort(R.route.totalDistM)}.`;
+  $("sumTitle").textContent = how === "end" ? "Route finished" : how === "finish" ? "Ride finished" : "Ride saved";
   $("sumText").textContent = t;
   $("summary").hidden = false;
   drawSummaryUpload();
@@ -590,7 +602,7 @@ async function lockScreen() { try { if ("wakeLock" in navigator) R.wake = await 
 function releaseScreen() { try { R.wake && R.wake.release(); } catch (e) {} R.wake = null; }
 function start() {
   const ses = R.session;
-  if (ses.state.finished) { ses.jumpTo(0); ses.resetStats(); }
+  if (ses.state.finished || R.meta.done) { ses.jumpTo(0); ses.resetStats(); R.meta.done = false; }
   $("summary").hidden = true;
   beginLog(); ses.start();
   lockScreen(); update();
@@ -599,17 +611,36 @@ function stop() {
   R.session.pause();
   saveProgress(); update(); releaseScreen();
 }
-// Ends the ride (not the route): it goes to history with a summary; the route can be continued later.
-function endRide(routeDone) {
+// Ends the ride: it goes to history with a summary. how: "end" (reached the end of the route),
+// "finish" (the rider is done with the route part-way, so it no longer shows as in progress),
+// or "save" (the spot is kept and the route can be continued later).
+function endRide(how) {
+  closeEndSheet();
   if (R.session.state.running) R.session.pause();
+  if (how === "finish") R.meta.done = true;
   const sum = TAH.summarize(R.session.samples);
   const log = endLog(); U.lastRideId = log ? log.id : null;
   saveProgress(); releaseScreen();
-  if (log && sum.elapsedS >= 1) showSummary(sum, routeDone);
+  if (log && sum.elapsedS >= 1) showSummary(sum, how);
   update();
 }
-function finished() { endRide(true); }
-$("endRide").addEventListener("click", () => endRide(R.session.state.finished));
+function finished() { endRide("end"); }
+
+// Finish asks what kind of finish: done with the route, or stop for now and keep the spot.
+// The ride pauses while the choice is open; Keep riding carries on if it was moving.
+function openEndSheet() {
+  R.resumeAfterSheet = R.session.state.running;
+  if (R.resumeAfterSheet) stop();
+  $("saveSpotSub").textContent = `Continue from ${fmtDShort(R.session.state.distM)} another time.`;
+  setText("keepRiding", R.resumeAfterSheet ? "Keep riding" : "Cancel");
+  $("rideControls").hidden = true; $("endSheet").hidden = false;
+  $("finishRoute").focus();
+}
+function closeEndSheet() { $("endSheet").hidden = true; $("rideControls").hidden = false; }
+$("endRide").addEventListener("click", openEndSheet);
+$("finishRoute").addEventListener("click", () => endRide("finish"));
+$("saveSpot").addEventListener("click", () => endRide("save"));
+$("keepRiding").addEventListener("click", () => { closeEndSheet(); if (R.resumeAfterSheet) start(); else update(); });
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") { if (R.session && R.session.state.running) lockScreen(); }
   else { saveProgress(); if (R.session) R.session.flush(); }
@@ -637,11 +668,11 @@ holdRepeat($("sDown"), () => changeSpeed(-1));
 $("syncBtn").addEventListener("click", () => {
   const v = parseFloat($("syncIn").value.replace(",", "."));
   if (!Number.isFinite(v) || v < 0) { $("syncIn").focus(); return; }
-  R.session.jumpTo(v * dUnit()); $("syncIn").value = ""; saveProgress();
+  R.meta.done = false; R.session.jumpTo(v * dUnit()); $("syncIn").value = ""; saveProgress();
 });
 $("strip").addEventListener("click", e => {
   const b = e.currentTarget.getBoundingClientRect();
-  R.session.jumpTo(clamp((e.clientX - b.left) / b.width, 0, 1) * R.route.totalDistM); $("summary").hidden = true; saveProgress();
+  R.meta.done = false; R.session.jumpTo(clamp((e.clientX - b.left) / b.width, 0, 1) * R.route.totalDistM); $("summary").hidden = true; saveProgress();
 });
 
 
@@ -1207,7 +1238,7 @@ const fact = (value, label) => { const [n, u] = String(value).split(" "); return
 
 async function drawHome() {
   // The hero features one route: one you're part-way through, else the one used most recently.
-  const going = metas.filter(m => m.pos > 50 && m.pos < m.total - 5).sort((a, b) => (b.lastRidden || 0) - (a.lastRidden || 0))[0];
+  const going = metas.filter(isGoing).sort((a, b) => (b.lastRidden || 0) - (a.lastRidden || 0))[0];
   const next = going || metas.slice().sort((a, b) => recency(b) - recency(a))[0];
   const hero = $("hero");
   if (!next) {
@@ -1218,10 +1249,10 @@ async function drawHome() {
     const pct = Math.round(next.pos / next.total * 100);
     const facts = going ? fact(fmtDShort(going.pos), "ridden") + fact(fmtDShort(going.total - going.pos), "to go") + fact(`${pct}%`, "complete")
       : fact(fmtDShort(next.total), "distance") + (next.hasEle === false ? "" : fact(`${fmtE(next.gain)} ${eUnit()}`, "climbing"));
-    hero.innerHTML = `<div class="hero-top"><div><p class="kicker">${going ? "Continue your ride" : "Ready when you are"}</p>
+    hero.innerHTML = `<div class="hero-top"><div><p class="kicker">${going ? "Continue your ride" : isDone(next) ? "You finished this route" : "Ready when you are"}</p>
       <h2>${esc(next.name)}</h2></div>${heroSvg(next.preview, going ? going.pos / going.total : null)}</div>
       <div class="facts">${facts}</div>
-      <button class="primary" data-hero="ride" data-id="${esc(next.id)}">${BIKE_ICON}${going ? "Continue ride" : "Ride this route"}</button>
+      <button class="primary" data-hero="ride" data-id="${esc(next.id)}">${BIKE_ICON}${going ? "Continue ride" : isDone(next) ? "Ride it again" : "Ride this route"}</button>
       <button class="alt" data-hero="pick">Choose a different route</button>`;
   }
   $("tRoutes").textContent = metas.length ? `${metas.length} route${metas.length === 1 ? "" : "s"} saved` : "Add your first routes";
@@ -1270,11 +1301,16 @@ $("pickList").addEventListener("click", ev => {
   showStep(2);
 });
 function drawPicked() {
-  const m = START.route, part = m.pos > 50 && m.pos < m.total - 5;
+  // A route finished part-way can still be picked up where it was left, but starts over by default.
+  const m = START.route, part = m.pos > 50 && !reachedEnd(m);
   $("picked").innerHTML = `<ul class="routes">${routeCard(m, "static")}</ul><button class="change" id="changeRoute">Choose a different route</button>`;
   $("fromBox").hidden = !part;
-  if (part) { $("fromWhere").textContent = `${fmtDShort(m.pos)} of ${fmtDShort(m.total)}`; document.querySelector('input[name="from"][value="resume"]').checked = true; }
-  $("beginRide").textContent = part ? "Start ride" : m.pos >= m.total - 5 ? "Ride it again" : "Start ride";
+  if (part) {
+    $("fromWhere").textContent = `${fmtDShort(m.pos)} of ${fmtDShort(m.total)}`;
+    $("fromResumeL").textContent = m.done ? "Where you finished" : "Where you left off";
+    document.querySelector(`input[name="from"][value="${m.done ? "begin" : "resume"}"]`).checked = true;
+  }
+  $("beginRide").textContent = isDone(m) ? "Ride it again" : "Start ride";
   $("changeRoute").addEventListener("click", () => {
     if (history.state && history.state.fromList) history.back();
     else { history.replaceState({ page: "start", depth: depth() }, "", "#start"); showStep(1); }
@@ -1285,7 +1321,9 @@ $("beginRide").addEventListener("click", async () => {
   const m = START.route; if (!m || beginning) return;
   beginning = true; $("beginRide").disabled = true;
   try {
-    if (!$("fromBox").hidden && document.querySelector('input[name="from"]:checked').value === "begin") { m.pos = 0; m.stats = null; await putMeta(m); }
+    const fromStart = $("fromBox").hidden ? isDone(m) : document.querySelector('input[name="from"]:checked').value === "begin";
+    if (fromStart) { m.pos = 0; m.stats = null; }
+    if (fromStart || m.done) { m.done = false; await putMeta(m); }   // riding it again: in progress until finished
     if (!(await openRide(m))) return;
     go("ride", { replace: true });                     // back from the ride returns to where you came from
     start();

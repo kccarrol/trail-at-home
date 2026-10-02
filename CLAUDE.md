@@ -74,8 +74,13 @@ screen, and is not a developer: explain changes in plain language.
 - **Ride lifecycle:** Start a ride (pick route, connect bike) → `openRide()` → `start()`. The
   ride page runs `R.session` (rideSession) driven by `requestAnimationFrame` while visible and a
   250 ms interval otherwise. Settings can be opened mid-ride without ending it; any other page
-  ends the ride (pauses, saves the log and the spot on the route). End ride and finishing both
-  go through `endRide()`.
+  ends the ride (pauses, saves the log and the spot on the route). The pinned Finish button pauses
+  and opens a choice: Finish route (`endRide("finish")`, sets the route's `done` flag) or Stop for
+  now (`endRide("save")`); reaching the end calls `endRide("end")`.
+- **Finished routes:** a route is finished when ridden to the end or when `m.done` is set (Finish
+  route, or Mark finished on Routes). Use `isDone()` / `isGoing()` in `app.js`; only an in-progress
+  route gets Home's Continue card. Riding it again (from the start or where it was finished) clears
+  `done`. Old records without `done` behave as before.
 - **Start-up guard** (top of `index.html`): if a script fails to load or `app.js` throws before
   finishing, it repairs once automatically (clears the app's caches and service worker, never
   user data), then shows a message with a Repair button. It only repairs when online.
@@ -99,7 +104,7 @@ properties at the top of the `<style>` block; use them rather than new hex value
 - Type: Barlow Condensed, bold and uppercase, only for page titles, the Home hero, route names
   and big numbers. Everything else is Barlow, sentence case. No all-caps labels.
 - Home must show all four tiles above the tab bar on 360×740, 390×844 and 412×915 (the
-  `layout` suite checks this). The ride page keeps Pause and End ride pinned on screen.
+  `layout` suite checks this). The ride page keeps Pause and Finish pinned on screen.
 - Keep text contrast at 4.5:1 or better (3:1 only for large bold text).
 
 UI copy: plain words, sentence case, active voice, says what will happen ("Upload to Strava").

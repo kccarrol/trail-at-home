@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Trail at Home</title>
 <meta name="theme-color" content="#0F1612">
-<meta name="app-version" content="13">
+<meta name="app-version" content="14">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -180,6 +180,8 @@ h1[tabindex]:focus-visible{outline:3px solid var(--gear);outline-offset:2px}
 .route .open:disabled{cursor:default}
 .route b{display:block;font-family:var(--display);font-size:25px;font-weight:700;line-height:1.05;text-transform:uppercase;overflow-wrap:anywhere}
 .route .sub{display:block;color:var(--muted);font-size:14px}
+.route .sub.done{color:#6FD08A;font-weight:600}
+.route .sub.done::before{content:"\2713\00a0"}
 .route .stats2{display:flex;gap:16px;margin:0 0 2px}
 .route .stats2 span{font-size:13px;color:var(--muted)}
 .route .stats2 em{font-style:normal;font-family:var(--display);font-weight:700;font-size:22px;color:var(--accent-text);margin-right:3px}
@@ -310,6 +312,14 @@ summary{font-weight:600;cursor:pointer}
 .controls{display:flex;gap:8px;margin:0}
 .controls .primary{flex:2;padding:13px;font-size:22px}
 .controls .secondary{flex:1;font-size:17px}
+.endq{margin:0 0 8px;font-weight:600;font-size:17px;text-align:center}
+.choice{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;margin:0 0 8px;padding:11px 16px;text-align:left;background:var(--paper);color:var(--ink);border:1.5px solid var(--line);border-radius:var(--r-md);cursor:pointer}
+.choice b{font-family:var(--display);font-size:21px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;line-height:1.1}
+.choice small{font-size:14px;line-height:1.3;color:var(--muted)}
+.choice.done{background:var(--accent-deep);border-color:var(--accent-deep);color:#fff}
+.choice.done small{color:#fff}
+.choice:active{transform:translateY(1px)}
+.keep{display:block;margin:2px auto 0;padding:8px 22px}
 .ride-paused .speed,.ride-paused .sign{opacity:.55;transition:opacity .3s}
 
 @media (prefers-reduced-motion:reduce){
@@ -355,7 +365,7 @@ summary{font-weight:600;cursor:pointer}
       <div class="picked" id="picked"></div>
       <fieldset class="from" id="fromBox" hidden>
         <legend>Start from</legend>
-        <label><input type="radio" name="from" value="resume" checked> Where you left off (<span id="fromWhere"></span>)</label>
+        <label><input type="radio" name="from" value="resume" checked> <span><span id="fromResumeL">Where you left off</span> (<span id="fromWhere"></span>)</span></label>
         <label><input type="radio" name="from" value="begin"> The beginning</label>
       </fieldset>
       <h2 class="stephead">Connect your bike <span>(optional)</span></h2>
@@ -439,7 +449,8 @@ summary{font-weight:600;cursor:pointer}
       <li>If you stop pedaling for 5 seconds, the ride clock pauses until you start again.</li>
       <li>The upper profile shows the trail just ahead; the strip below shows the whole route. Tap the strip to jump to a spot.</li>
       <li>A note appears 1 km before each climb. Tap it to hide it for that climb.</li>
-      <li>End ride saves the ride to your history. Your spot on the route is kept, so you can continue it another day.</li>
+      <li>Finish saves the ride to your history and asks what's next. Finish route marks the route finished, so Home stops offering to continue it. Stop for now keeps your spot, so you can continue another day.</li>
+      <li>Changed your mind? A finished route can still be picked up where you finished, from the Start from choice. On Routes, Mark finished clears a route you won't come back to.</li>
     </ul>
     <h2 id="infoStrava">Sending rides to Strava</h2>
     <p>Every ride can be downloaded as a TCX file from its summary or from Ride history, then added at strava.com/upload/select in a browser (Strava's phone app can't import files).</p>
@@ -570,12 +581,18 @@ summary{font-weight:600;cursor:pointer}
       <button id="syncBtn">Match</button>
     </div>
 
-    <!-- Pinned to the bottom of the screen, so Pause and End ride are always in reach -->
+    <!-- Pinned to the bottom of the screen, so Pause and Finish are always in reach -->
     <div class="ridebar">
       <p class="rstate" id="rideState" data-state="ready" role="status">Ready</p>
-      <div class="controls">
+      <div class="controls" id="rideControls">
         <button class="primary" id="go">Start</button>
-        <button class="secondary" id="endRide" hidden>End ride</button>
+        <button class="secondary" id="endRide" hidden>Finish</button>
+      </div>
+      <div class="endsheet" id="endSheet" role="group" aria-labelledby="endQ" hidden>
+        <p class="endq" id="endQ">Finish this ride?</p>
+        <button class="choice done" id="finishRoute"><b>Finish route</b><small>You're done with it. Home won't offer to continue it.</small></button>
+        <button class="choice" id="saveSpot"><b>Stop for now</b><small id="saveSpotSub">Continue from here another time.</small></button>
+        <button class="linkbtn keep" id="keepRiding">Keep riding</button>
       </div>
     </div>
   </main>

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Trail at Home</title>
 <meta name="theme-color" content="#0F1612">
-<meta name="app-version" content="17">
+<meta name="app-version" content="18">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -327,6 +327,15 @@ summary{font-weight:600;cursor:pointer}
 .in-ride #rideHead{display:none}
 .in-ride .rstate{position:absolute;width:1px;height:1px;margin:0;padding:0;overflow:hidden;clip:rect(0 0 0 0);border:0}  /* still read out by screen readers */
 .in-ride .sign{margin-top:4px}
+/* During a ride the page fills the screen exactly: the map takes whatever height is left, so nothing needs scrolling */
+.wrap:has(> .in-ride){padding-bottom:0}
+.in-ride{display:flex;flex-direction:column;min-height:calc(100dvh - 12px)}
+.in-ride .profiles{flex:1 0 auto;display:flex;flex-direction:column}
+.in-ride .ahead{flex:1 0 76px;height:auto;max-height:320px}
+.in-ride .ahead canvas{position:absolute;inset:0}
+.in-ride .ridebar{margin-top:10px}
+/* Very short screens: tighten the speed box so the map keeps a usable height */
+@media (max-height:700px){.in-ride .speed{padding:6px}.in-ride .speed button{min-height:68px;font-size:44px}.in-ride .live,.in-ride .stats,.in-ride .profiles{margin-top:8px}.in-ride .spdval .lbl{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.in-ride .sign{padding:10px 14px 12px}.in-ride .sign .big{font-size:64px}}
 .pauseframe{display:none;position:fixed;inset:0;z-index:20;pointer-events:none;border:5px solid var(--gear)}
 .ride-paused .pauseframe{display:block}
 .pauseframe span{position:absolute;top:0;left:50%;transform:translateX(-50%);background:var(--gear);color:#1A1405;font-weight:700;font-size:15px;line-height:1.2;padding:2px 16px 5px;border-radius:0 0 10px 10px;white-space:nowrap}
@@ -579,6 +588,12 @@ summary{font-weight:600;cursor:pointer}
     </div>
     <div class="banner lost" id="lostBanner" role="status" hidden><span id="lostText">Bike disconnected. Reconnecting…</span><button id="lostManual">Use + and −</button></div>
 
+    <div class="stats">
+      <div><b id="sDist">0.00</b><span id="sDistL">mi ridden</span></div>
+      <div><b id="sLeft">0.00</b><span id="sLeftL">mi to go</span></div>
+      <div><b id="sGain">0</b><span id="sGainL">ft climbed</span></div>
+    </div>
+
     <section class="profiles" id="profiles" aria-label="Elevation profile">
       <div class="ahead">
         <canvas id="ahead" role="img" aria-label="Elevation of the route just ahead"></canvas>
@@ -588,12 +603,6 @@ summary{font-weight:600;cursor:pointer}
       </div>
       <canvas class="strip" id="strip" role="img" aria-label="The whole route. Tap to jump to that spot."></canvas>
     </section>
-
-    <div class="stats">
-      <div><b id="sDist">0.00</b><span id="sDistL">mi ridden</span></div>
-      <div><b id="sLeft">0.00</b><span id="sLeftL">mi to go</span></div>
-      <div><b id="sGain">0</b><span id="sGainL">ft climbed</span></div>
-    </div>
 
     <!-- Pinned to the bottom of the screen, so Pause and Finish are always in reach -->
     <div class="ridebar">

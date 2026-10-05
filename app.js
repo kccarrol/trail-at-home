@@ -10,7 +10,7 @@ const $ = id => document.getElementById(id);
 const TAH = window.TAH;
 
 // Must match <meta name="app-version"> in index.html (and is bumped with sw.js's cache version).
-const APP_VERSION = "19";
+const APP_VERSION = "20";
 {
   const page = document.querySelector('meta[name="app-version"]');
   if (!page || page.content !== APP_VERSION) throw new Error(`index.html and app.js are from different versions (${page ? page.content : "older"} and ${APP_VERSION}). Upload both from the same zip.`);
@@ -603,7 +603,10 @@ function showResistance(st) {
   $("resBox").classList.toggle("alert", alert);
   setText("resDir", alert ? (up ? "▲" : "▼") : "");
   setText("resLbl", alert ? (up ? "Turn up" : "Turn down") : "Set resistance");
-  setText("resBike", bike === null ? "" : `Bike at ${bike}`);
+  $("resBike").hidden = bike === null;
+  setText("resBikeN", bike === null ? "" : bike);
+  $("resOk").toggleAttribute("hidden", bike === null || !!off);     // a tick when the knob matches (it sits on the left, so the number doesn't move)
+  setText("resOkTxt", bike !== null && !off ? ", matches" : "");
 }
 
 function showAutoPause() { update(); }

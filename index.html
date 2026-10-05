@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Trail at Home</title>
 <meta name="theme-color" content="#0F1612">
-<meta name="app-version" content="19">
+<meta name="app-version" content="20">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -258,24 +258,29 @@ summary{font-weight:600;cursor:pointer}
 .sumacts{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .sumacts button{flex:1 1 140px;padding:11px 14px}
 .sumacts .primary{font-size:20px}
-.sign{border-radius:var(--r-lg);color:#fff;padding:14px 16px 16px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-items:end;transition:background-color .4s;border:1px solid transparent}
+.sign{border-radius:var(--r-lg);color:#fff;padding:14px 16px 16px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;align-items:end;transition:background-color .4s;border:1px solid transparent}
 .sign[data-cls="easy"]{background:var(--green)}
 .sign[data-cls="moderate"]{background:var(--blue)}
 .sign[data-cls="hard"],.sign[data-cls="extreme"]{background:var(--black);border-color:#3A4A3F}
 .sign[data-cls="descent"]{background:var(--descent)}
-.sign .top{grid-column:1/-1;display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:700;font-size:24px;line-height:1;text-transform:uppercase;letter-spacing:.02em}
+.sign .top{grid-column:1/-1;display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:700;font-size:clamp(21px,6.2vw,24px);line-height:1;text-transform:uppercase;letter-spacing:.02em}
 .sign .top svg{width:30px;height:30px;flex:none}
 .big{font-family:var(--display);font-weight:800;font-size:clamp(58px,20vw,124px);line-height:.9;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
 .big small{font-size:.42em;font-weight:600;margin-left:2px}
 .res{text-align:right}
 .lbl{font-size:15px;opacity:.85;display:block;margin-top:4px}
 .dir{display:inline-block;margin-left:2px}
-.bikeres{display:block;font-size:14px;opacity:.85}
-.bikeres:empty{display:none}
+.sign .top #diff{min-width:0;line-height:1.05}   /* a long name wraps rather than crowd out the bike's level */
+.bikeres{margin-left:auto;flex:none;display:flex;align-items:baseline;gap:5px;text-transform:none;letter-spacing:0}
+.bikeres[hidden]{display:none}
+.bikeres .bl{font-family:var(--body);font-weight:600;font-size:15px}
+.bikeres b{font-size:30px;font-variant-numeric:tabular-nums}
+.sign .bikeres .ok{width:20px;height:20px;align-self:center;margin-right:1px}
+.sign .bikeres .ok[hidden]{display:none}
 /* Time to turn the knob: a solid yellow block that pulses, with Turn up / Turn down */
 .res{border-radius:var(--r-md);padding:6px 10px;margin:-6px -10px;transition:background-color .2s}
 .res.alert{background:var(--gear);color:#1A1405;animation:respulse 1s ease-in-out 3}
-.res.alert .lbl,.res.alert .bikeres{opacity:1;font-weight:700}
+.res.alert .lbl{opacity:1;font-weight:700}
 .res.alert .dir{font-size:1.25em;line-height:1}
 @keyframes respulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
 .speed{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:stretch;gap:10px;margin-top:10px;background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);padding:10px}
@@ -464,7 +469,7 @@ summary{font-weight:600;cursor:pointer}
     <p>On the bike's screen, go to Programs and start the third-party app workout, then tap Connect bike and pick the bike. The app reads power, cadence and speed, and heart rate if you connect a monitor. If the bike disconnects mid-ride, the ride carries on as if you'd stopped pedaling while the app reconnects.</p>
     <h2>How speed and resistance work</h2>
     <p>When the bike shares power, your speed is worked out from your watts, your weight (plus 13 kg of bike) and the trail's grade, as if riding a mountain bike on hardpacked dirt. Climbs slow you down, descents carry momentum, and speed tops out at <span id="capNote">56 mph</span>.</p>
-    <p>The suggested resistance is your flat-ground level plus a number of levels for each 1% of grade (half as much on descents), using the average grade of the road around you, looking a little ahead (75 m behind to 125 m in front). It moves in steps (5 levels unless you change it in Settings) and changes at most every 20 seconds unless the road changes a lot, so you aren't turning the knob all the time. When it changes, the box turns yellow and says Turn up or Turn down. Hill difficulty in Settings scales both the speed effect and the suggestion.</p>
+    <p>The suggested resistance is your flat-ground level plus a number of levels for each 1% of grade (half as much on descents), using the average grade of the road around you, looking a little ahead (75 m behind to 125 m in front). It moves in steps (5 levels unless you change it in Settings) and changes at most every 20 seconds unless the road changes a lot, so you aren't turning the knob all the time. When it changes, the box turns yellow and says Turn up or Turn down. If your bike reports its resistance level, the level your knob is at shows just above the suggestion as "Bike", with a tick when it matches. It appears once you turn the knob after connecting. Hill difficulty in Settings scales both the speed effect and the suggestion.</p>
     <h2>While you ride</h2>
     <ul>
       <li>While you ride, the route name and Riding label are hidden to give the trail more room. Settings is the gear button next to Finish. Mid-ride, its This ride section connects the bike or heart rate monitor, and matches the distance on your console.</li>
@@ -520,7 +525,7 @@ summary{font-weight:600;cursor:pointer}
       <label>Highest level on your bike<input type="number" id="setMax" min="1" max="200" step="1"></label>
       <label><span id="weightL">Your weight (lb)</span><input type="number" id="setWeight" min="20" max="700" step="1"></label>
     </div>
-    <p class="small" id="diffHelp">Hill difficulty sets how much of each hill you feel: 100% is true to the route, 50% makes hills half as steep, 0% rides flat. Example: with 25 on flat ground and 4 levels per 1%, a 6% climb works out at 49, shown as 50 with steps of 5. If your bike reports its resistance level, the ride page shows it and turns yellow until the knob matches.</p>
+    <p class="small" id="diffHelp">Hill difficulty sets how much of each hill you feel: 100% is true to the route, 50% makes hills half as steep, 0% rides flat. Example: with 25 on flat ground and 4 levels per 1%, a 6% climb works out at 49, shown as 50 with steps of 5. If your bike reports its resistance level, the ride page shows it next to the suggestion (turn the knob once after connecting) and stays yellow until the knob matches.</p>
     <h2>Display</h2>
     <div class="grid">
       <label>Units<select id="setUnits"><option value="mi">Miles and feet</option><option value="km">Kilometers and meters</option></select></label>
@@ -568,7 +573,10 @@ summary{font-weight:600;cursor:pointer}
     </section>
 
     <section class="sign" id="sign" data-cls="easy" aria-label="Current trail conditions">
-      <div class="top"><span id="sym"></span><span id="diff">Easy</span></div>
+      <div class="top"><span id="sym"></span><span id="diff">Easy</span>
+        <!-- The level the bike's knob is at, when the bike reports it: sits right above the suggestion -->
+        <span class="bikeres" id="resBike" hidden><svg class="ok" id="resOk" viewBox="0 0 24 24" hidden aria-hidden="true" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6"/></svg><span class="bl">Bike</span><b id="resBikeN"></b><span class="sr-only" id="resOkTxt"></span></span>
+      </div>
       <div>
         <div class="big"><span id="grade">0.0</span><small>%</small></div>
         <span class="lbl">Grade</span>
@@ -576,7 +584,6 @@ summary{font-weight:600;cursor:pointer}
       <div class="res" id="resBox">
         <div class="big" id="res">25</div>
         <span class="lbl"><span id="resLbl" aria-live="polite">Set resistance</span> <span class="dir" id="resDir" aria-hidden="true"></span></span>
-        <span class="bikeres" id="resBike"></span>
       </div>
     </section>
 

@@ -339,8 +339,9 @@ def suite_strava(browser, base):
         page.clock.run_for(2500); page.wait_for_timeout(100)
         if "virtual ride" in page.text_content("#sumMsg"): break
     check("back online, the ride uploads as a virtual ride", "On Strava as a virtual ride" in page.text_content("#sumMsg"), page.text_content("#sumMsg"))
-    check("the upload is a trainer ride with TCX data", state["posts"] and state["posts"][0]["trainer"] and state["posts"][0]["tcx"])
-    check("the activity type was set to Virtual Ride", state["puts"] == [{"sport_type": "VirtualRide", "trainer": True}], state["puts"])
+    check("the upload has TCX data and, having a map, isn't marked as on a trainer (Strava would hide the map)",
+          state["posts"] and not state["posts"][0]["trainer"] and state["posts"][0]["tcx"])
+    check("the activity type was set to Virtual Ride", state["puts"] == [{"sport_type": "VirtualRide"}], state["puts"])
     check("the summary links to the Strava activity", page.get_attribute("#sumMsg a", "href") == "https://www.strava.com/activities/777")
     page.click("#back"); page.clock.run_for(500); page.click('[data-tab="history"]'); page.clock.run_for(500); page.wait_for_timeout(300)
     rid = page.evaluate("TAH.rides.list().then(l => l[0].id)")
@@ -358,10 +359,21 @@ def suite_strava(browser, base):
         status = page.evaluate(f"TAH.rides.get('{rid}', false).then(r => r.upload.status)")
         if status == "uploaded": break
     check("a ride left waiting uploads when the app reopens", status == "uploaded" and len(state["posts"]) - n == 1, status)
+    # Upload again: after the ride is deleted on Strava, it can be sent once more from history.
+    state["ext"].clear(); n = len(state["posts"])
+    page.wait_for_selector(".ride [data-act=again]", timeout=5000)
+    check("an uploaded ride offers Upload again, not Upload", page.is_hidden(".ride [data-act=up]"))
+    page.locator(".ride [data-act=again]").click()
+    for _ in range(15):
+        page.clock.run_for(2000); page.wait_for_timeout(100)
+        if len(state["posts"]) > n and "virtual ride" in page.text_content(".ride .upst"): break
+    check("Upload again sends the ride to Strava once more", len(state["posts"]) - n == 1 and "On Strava as a virtual ride" in page.text_content(".ride .upst"),
+          page.text_content(".ride .upst"))
     # Upload automatically: the next ride goes to Strava when it ends, without tapping Upload.
     check("automatic upload is off until turned on", not page.evaluate("JSON.parse(localStorage.getItem('tah-settings') || '{}').autoUpload"))
     page.click('[data-tab="settings"]'); page.clock.run_for(500)
     page.check("#setAuto"); page.clock.run_for(500)
+    page.wait_for_function("document.getElementById('stravaState').textContent.includes('when they end')", timeout=5000)
     check("Settings says rides go to Strava when they end", "when they end" in page.text_content("#stravaState"), page.text_content("#stravaState"))
     page.click('[data-tab="routes"]'); page.wait_for_selector("#routes .route")
     n = len(state["posts"])

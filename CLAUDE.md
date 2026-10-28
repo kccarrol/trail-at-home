@@ -83,7 +83,7 @@ screen, and is not a developer: explain changes in plain language.
 - **Ride recap:** each log sample also holds `resSug` (the suggested level shown) and `resBike`
   (the knob, when the bike reports it). The recap page reads the ride id from `history.state.rideId`
   and opens from the finish summary (replacing the ride page) or from Ride history (Back returns
-  there). Rides from before version 21 have neither field, so they show no score.
+  there). Rides from before version 24 have neither field, so they show no score.
 - **Finished routes:** a route is finished when ridden to the end or when `m.done` is set (Finish
   route, or Mark finished on Routes). Use `isDone()` / `isGoing()` in `app.js`; only an in-progress
   route gets Home's Continue card. Riding it again (from the start or where it was finished) clears

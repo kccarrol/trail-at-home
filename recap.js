@@ -10,7 +10,7 @@
      suggestion changes aren't rated, since that's when the rider is turning the knob.
      pct is 100 only when every rated second earned full credit.
    rateRide(samples, stepSize) -> per sample: null (not rated) or { kind: "on" | "over" | "under", credit 0..1 }
-   rideExtras(samples) -> { avgSpeedMps, avgCadenceRpm, maxHrBpm }
+   rideExtras(samples) -> { avgCadenceRpm, maxHrBpm }   (cadence while moving; tcx.js's summarize has the rest)
    buckets(samples, n, fn) -> n averages of fn(sample) over equal slices of ride time (null: no data)
    fitTrack(lat[], lon[], width, height, pad) -> { x(lat, lon), y(lat, lon) } scaled to fit, north up
    drawMap(ctx, { routeLat, routeLon, ride: [{ lat, lon, kind }], colors, width, height })
@@ -63,15 +63,12 @@ function effortScore(samples, { stepSize = 5 } = {}) {
 }
 
 function rideExtras(samples) {
-  let dist = 0, secs = 0, cSum = 0, cN = 0, maxHr = null;
-  for (let i = 0; i < (samples || []).length; i++) {
-    const x = samples[i];
+  let cSum = 0, cN = 0, maxHr = null;
+  for (const x of samples || []) {
     if (x.hrBpm != null) maxHr = Math.max(maxHr || 0, x.hrBpm);
-    if (!(x.speedMps > MOVING_MPS)) continue;
-    if (x.cadenceRpm > 0) { cSum += x.cadenceRpm; cN++; }
-    if (i) { const dt = x.elapsedS - samples[i - 1].elapsedS; if (dt > 0 && dt <= MAX_GAP_S) { secs += dt; dist += x.speedMps * dt; } }
+    if (x.speedMps > MOVING_MPS && x.cadenceRpm > 0) { cSum += x.cadenceRpm; cN++; }
   }
-  return { avgSpeedMps: secs ? dist / secs : 0, avgCadenceRpm: cN ? cSum / cN : null, maxHrBpm: maxHr };
+  return { avgCadenceRpm: cN ? cSum / cN : null, maxHrBpm: maxHr };
 }
 
 function buckets(samples, n, fn) {
@@ -117,12 +114,16 @@ function drawMap(ctx, o) {
     for (let i = 0; i < o.routeLat.length; i++) { const x = f.x(o.routeLat[i], o.routeLon[i]), y = f.y(o.routeLat[i], o.routeLon[i]); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
     ctx.stroke();
   }
+  // The ride, coloured by how it followed the suggestion: one stroke per run of the same colour.
   ctx.lineWidth = 5;
-  for (let i = 1; i < o.ride.length; i++) {        // the ride, coloured by how it followed the suggestion
+  let kind = null, open = false;
+  for (let i = 1; i <= o.ride.length; i++) {
     const a = o.ride[i - 1], b = o.ride[i];
-    if (a.lat == null || b.lat == null) continue;
-    ctx.strokeStyle = c[b.kind] || c.ride; ctx.beginPath();
-    ctx.moveTo(f.x(a.lat, a.lon), f.y(a.lat, a.lon)); ctx.lineTo(f.x(b.lat, b.lon), f.y(b.lat, b.lon)); ctx.stroke();
+    const ok = b && a.lat != null && b.lat != null;
+    if (open && (!ok || b.kind !== kind)) { ctx.stroke(); open = false; }
+    if (!ok) continue;
+    if (!open) { kind = b.kind; ctx.strokeStyle = c[kind] || c.ride; ctx.beginPath(); ctx.moveTo(f.x(a.lat, a.lon), f.y(a.lat, a.lon)); open = true; }
+    ctx.lineTo(f.x(b.lat, b.lon), f.y(b.lat, b.lon));
   }
   const dot = (p, fill) => {
     if (!p || p.lat == null) return;

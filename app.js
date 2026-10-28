@@ -1182,19 +1182,31 @@ async function handleStravaReturn() {
    After a ride (from the finish summary) or from Ride history: a resistance score for how closely
    the knob followed the suggestion (recap.js), the ride's numbers, a map of the route with the
    ride drawn on it, and charts over the ride's time. */
-const RC = { ride: null, route: null };
+const RC = { ride: null, route: null, ask: 0, redraw: 0 };
 const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
 async function drawRecap() {
-  const id = history.state && history.state.rideId;
-  await logSave;
-  const ride = id ? await rides.get(id).catch(() => null) : null;
-  RC.ride = ride && ride.samples.length ? ride : null; RC.route = null;
-  $("recapGone").hidden = !!RC.ride; $("recapBody").hidden = !RC.ride;
-  if (!RC.ride) return;
-  const m = metas.find(x => x.id === ride.routeId), p = m && m.hasTrack ? await getProfile(ride.routeId).catch(() => null) : null;
-  if (p && p.lat && p.lon) RC.route = { lat: p.lat, lon: p.lon };
+  const id = history.state && history.state.rideId, ask = ++RC.ask;   // a later call wins if two overlap
+  RC.ride = null; RC.route = null;
+  let ride = null, p = null, problem = "";
+  try {
+    await logSave;
+    ride = id ? await rides.get(id) : null;
+    // The route's own outline for the map (from storage, so it works before the route list has loaded).
+    if (ride && ride.samples.length) p = await getProfile(ride.routeId).catch(() => null);
+  } catch (e) { problem = "Couldn't read this ride from the phone's storage. Close the app fully and open it again. "; }
+  if (ask !== RC.ask) return;
+  if (!ride || !ride.samples.length) {
+    $("recapGone").firstChild.textContent = problem || (ride ? "This ride has no recorded data. " : "This ride isn't on this phone any more. ");
+    $("recapGone").hidden = false; $("recapBody").hidden = true;
+    return;
+  }
+  $("recapGone").hidden = true; $("recapBody").hidden = false;
+  RC.ride = ride;
+  if (p && p.lat && p.lon && p.lat.length) RC.route = { lat: p.lat, lon: p.lon };
+  const m = metas.find(x => x.id === ride.routeId);
   const samples = ride.samples, sum = TAH.summarize(samples), ex = TAH.rideExtras(samples);
+  const avgKmh = sum.movingS > 0 ? sum.distM / sum.movingS * 3.6 : 0;   // as the finish summary and Strava work it out
 
   $("rcName").textContent = ride.routeName || "Ride";
   $("rcWhen").textContent = when(ride.startedAt);
@@ -1203,7 +1215,7 @@ async function drawRecap() {
   // The numbers Strava shows for a ride, where this ride has them.
   const t = [[fmtDShort(sum.distM), "Distance"], [fmtT(sum.movingS), "Moving time"],
     [fmtT(ride.endedAt ? Math.max(sum.elapsedS, (ride.endedAt - ride.startedAt) / 1000) : sum.elapsedS), "Total time"],
-    [`${spdOut(ex.avgSpeedMps * 3.6)}<small>${sUnit()}</small>`, "Avg speed"], [`${spdOut(sum.maxSpeedMps * 3.6)}<small>${sUnit()}</small>`, "Top speed"],
+    [`${spdOut(avgKmh)}<small>${sUnit()}</small>`, "Avg speed"], [`${spdOut(sum.maxSpeedMps * 3.6)}<small>${sUnit()}</small>`, "Top speed"],
     [`${fmtE(sum.ascentM)}<small>${eUnit()}</small>`, "Climbed"]];
   if (sum.avgPowerW != null) t.push([`${Math.round(sum.avgPowerW)}<small>W</small>`, "Avg power"], [`${Math.round(sum.maxPowerW)}<small>W</small>`, "Top power"], [Math.round(sum.kJ).toLocaleString(), "Calories"]);
   if (ex.avgCadenceRpm != null) t.push([`${Math.round(ex.avgCadenceRpm)}<small>rpm</small>`, "Avg cadence"]);
@@ -1214,15 +1226,15 @@ async function drawRecap() {
   let txt = total ? `You rode ${fmtDShort(sum.distM)} of the ${fmtDShort(total)} route (${Math.min(100, Math.round(sum.distM / total * 100))}%)` : `You rode ${fmtDShort(sum.distM)}`;
   txt += ride.finished ? " and reached the end." : ".";
   $("rcMapText").textContent = hasMap ? txt : txt + " This route has no map positions, so there's no map.";
-  $("rcMap").hidden = !hasMap;
+  $("rcMap").hidden = !hasMap; $("rcLegend").innerHTML = "";
 
   // Charts: resistance (suggested and the bike's knob), speed, power, heart rate, elevation.
-  const has = k => samples.some(x => x[k] != null), max = (k, f = v => v) => Math.max(...samples.map(x => x[k] == null ? -Infinity : f(x[k])));
+  const has = k => samples.some(x => x[k] != null);
   const C = [];
   if (has("resSug")) C.push({ key: "res", title: "Resistance", note: has("resBike") ? "Suggested, and where your knob was" : "Suggested level" });
-  C.push({ key: "speed", title: "Speed", note: `Average ${spdOut(ex.avgSpeedMps * 3.6)}, top ${spdOut(sum.maxSpeedMps * 3.6)} ${sUnit()}` });
+  C.push({ key: "speed", title: "Speed", note: `Average ${spdOut(avgKmh)}, top ${spdOut(sum.maxSpeedMps * 3.6)} ${sUnit()}` });
   if (sum.avgPowerW != null) C.push({ key: "power", title: "Power", note: `Average ${Math.round(sum.avgPowerW)}, top ${Math.round(sum.maxPowerW)} W` });
-  if (sum.avgHrBpm != null) C.push({ key: "hr", title: "Heart rate", note: `Average ${Math.round(sum.avgHrBpm)}, top ${Math.round(max("hrBpm"))} bpm` });
+  if (sum.avgHrBpm != null) C.push({ key: "hr", title: "Heart rate", note: `Average ${Math.round(sum.avgHrBpm)}, top ${Math.round(ex.maxHrBpm)} bpm` });
   if (has("eleM")) C.push({ key: "ele", title: "Elevation", note: `${fmtE(sum.ascentM)} ${eUnit()} climbed` });
   $("rcCharts").innerHTML = C.map(c => `<div class="chart"><div class="chead"><b>${c.title}</b><span>${esc(c.note)}</span></div>
     <canvas data-chart="${c.key}" role="img" aria-label="${c.title} over the ride"></canvas>
@@ -1244,7 +1256,7 @@ function drawEffort(e, logged) {
   let t = e.pct === 100 ? `You matched or beat the suggested resistance the whole ride.`
     : `You matched or beat the suggested resistance for ${fmtT(met)} of ${fmtT(e.ratedS)}, and rode below it for ${fmtT(e.underS)}.`;
   if (e.overS >= 60) t += ` You went harder than suggested for ${fmtT(e.overS)}.`;
-  if (e.ratedS < e.movingS * 0.8) t += ` Scored on the ${fmtT(e.ratedS)} the bike reported its level.`;
+  if (e.ratedS < e.movingS * 0.8) t += ` The bike reported its level for only ${fmtT(e.ratedS)} of your ${fmtT(e.movingS)} of riding, so the score covers that part.`;
   $("rcEffText").textContent = t;
   $("rcBarOn").style.width = (met / e.ratedS * 100) + "%";
   $("rcBarLow").style.width = (e.underS / e.ratedS * 100) + "%";
@@ -1253,18 +1265,20 @@ function drawEffort(e, logged) {
 // Canvases are drawn at their size on screen, so this runs again on resize.
 function drawRecapCanvases() {
   const ride = RC.ride; if (!ride || page !== "recap") return;
-  const samples = ride.samples, colors = { route: cssVar("--descent"), ride: cssVar("--accent"), on: cssVar("--g-easy"), over: cssVar("--g-easy"),
+  const samples = ride.samples, colors = { route: cssVar("--descent"), ride: cssVar("--accent"), none: cssVar("--muted"), on: cssVar("--g-easy"), over: cssVar("--g-easy"),
     under: cssVar("--g-moderate"), way: cssVar("--g-steep"), start: cssVar("--g-easy"), end: cssVar("--accent"), bg: cssVar("--paper"), grid: cssVar("--line") };
   const rated = TAH.rateRide(samples, ride.resStep || 5), scored = rated.some(Boolean);
   if (!$("rcMap").hidden) {
     const v = { c: $("rcMap") }; fitCanvas(v);
     // The ride coloured by its rating: green matched or above, yellow a little below, red well below.
-    const pts = samples.map((x, i) => ({ lat: x.lat, lon: x.lon, kind: !rated[i] ? "ride" : rated[i].kind === "under" ? (rated[i].credit >= 0.8 ? "under" : "way") : "on" }));
+    // Unscored stretches (stopped, or turning the knob) are grey; with no score at all, the ride is orange.
+    const kindOf = r => !r ? (scored ? "none" : "ride") : r.kind === "under" ? (r.credit >= 0.8 ? "under" : "way") : "on";
+    const pts = samples.map((x, i) => ({ lat: x.lat, lon: x.lon, kind: kindOf(rated[i]) })), seen = new Set(pts.map(q => q.kind));
     TAH.drawMap(v.ctx, { routeLat: RC.route && RC.route.lat, routeLon: RC.route && RC.route.lon, ride: pts, colors, width: v.w, height: v.h });
-    $("rcLegend").innerHTML = (scored
-      ? [["--g-easy", "Matched or above the suggestion"], ["--g-moderate", "A little below"], ["--g-steep", "Well below"], ["--accent", "Not scored"]]
-      : [["--accent", "Your ride"]]).concat(RC.route ? [["--descent", "Rest of the route"]] : [])
-      .map(([c, l]) => `<span><i style="background:var(${c})"></i>${l}</span>`).join("");
+    $("rcLegend").innerHTML = [["on", "--g-easy", "Matched or above the suggestion"], ["under", "--g-moderate", "A little below"], ["way", "--g-steep", "Well below"],
+      ["none", "--muted", "Not scored (stopped, or turning the knob)"], ["ride", "--accent", "Your ride"], ["route", "--descent", "Rest of the route"]]
+      .filter(([k]) => k === "route" ? !!RC.route : k === "on" ? scored : seen.has(k))
+      .map(([, c, l]) => `<span><i style="background:var(${c})"></i>${l}</span>`).join("");
   }
   const kmh = isMi() ? 3.6 / 1.609344 : 3.6, eleK = isMi() ? 1 / FT : 1;
   document.querySelectorAll("#rcCharts canvas").forEach(c => {
@@ -1280,7 +1294,7 @@ function drawRecapCanvases() {
     TAH.drawChart(v.ctx, { lines, min: k === "ele" || k === "hr" ? null : 0, colors, width: v.w, height: v.h });
   });
 }
-if ("ResizeObserver" in window) new ResizeObserver(() => requestAnimationFrame(drawRecapCanvases)).observe($("recapBody"));
+if ("ResizeObserver" in window) new ResizeObserver(() => { cancelAnimationFrame(RC.redraw); RC.redraw = requestAnimationFrame(drawRecapCanvases); }).observe($("recapBody"));
 
 async function drawRecapUpload() {
   if (!RC.ride) return;

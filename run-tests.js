@@ -312,10 +312,10 @@ test("no score without the bike's level; stopped time isn't scored", () => {
   for (let i = 60; i < 120; i++) log[i].speedMps = 0;
   assert.equal(recap.effortScore(log, { stepSize: 5 }).pct, 100);
 });
-test("ride extras: average speed and cadence count moving time only", () => {
+test("ride extras: average cadence counts moving time only", () => {
   const log = resLog(repeat(10, [30, 30])).map((x, i) => Object.assign(x, { speedMps: i < 5 ? 10 : 0, cadenceRpm: i < 5 ? 90 : 0, hrBpm: 100 + i }));
   const ex = recap.rideExtras(log);
-  assert.ok(Math.abs(ex.avgSpeedMps - 10) < 1e-9); assert.equal(ex.avgCadenceRpm, 90); assert.equal(ex.maxHrBpm, 109);
+  assert.equal(ex.avgCadenceRpm, 90); assert.equal(ex.maxHrBpm, 109);
 });
 test("charts average the ride into equal slices of time, with gaps where there's no data", () => {
   const log = resLog(repeat(100, [30, 30])).map((x, i) => Object.assign(x, { powerW: i < 50 ? 100 : null }));

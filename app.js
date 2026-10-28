@@ -10,7 +10,7 @@ const $ = id => document.getElementById(id);
 const TAH = window.TAH;
 
 // Must match <meta name="app-version"> in index.html (and is bumped with sw.js's cache version).
-const APP_VERSION = "19";
+const APP_VERSION = "20";
 {
   const page = document.querySelector('meta[name="app-version"]');
   if (!page || page.content !== APP_VERSION) throw new Error(`index.html and app.js are from different versions (${page ? page.content : "older"} and ${APP_VERSION}). Upload both from the same zip.`);
@@ -60,6 +60,7 @@ function sanitize(o) {
   o.stravaClientId = typeof o.stravaClientId === "string" ? o.stravaClientId.trim().slice(0, 20) : "";
   o.stravaHelper = typeof o.stravaHelper === "string" ? o.stravaHelper.trim().slice(0, 300) : "";
   o.tcxPositions = o.tcxPositions !== false;              // include map positions in exported rides
+  o.autoUpload = o.autoUpload === true;                   // send each ride to Strava when it ends
   return o;
 }
 const S = sanitize(Object.assign({}, lsGet("tah-settings") || {}));
@@ -383,7 +384,7 @@ async function openRide(m) {
 // Leaving the ride page: pause, save the ride to history and the spot on the route.
 function closeRide() {
   if (R.session && R.session.state.running) stop();
-  endLog(); saveProgress();
+  autoUpload(endLog()); saveProgress();
   R.meta = null; R.route = null; R.session = null; TAH.currentRide = null;
   releaseScreen(); setStatus("");
   logSave.then(() => { if (page === "history") drawHistory(); if (page === "home") drawHome(); });
@@ -647,6 +648,7 @@ function endRide(how) {
   if (how === "finish") R.meta.done = true;
   const sum = TAH.summarize(R.session.samples);
   const log = endLog(); U.lastRideId = log ? log.id : null;
+  autoUpload(log);
   saveProgress(); releaseScreen();
   if (log && sum.elapsedS >= 1) showSummary(sum, how);
   update();
@@ -983,6 +985,20 @@ async function requestUpload(id) {
   refreshUploads();
   runQueue();
 }
+// With "Upload automatically" on, a ride joins the upload queue as it ends. Only once Strava is
+// connected, so rides from before then don't all go at once later; too-short rides are skipped.
+async function autoUpload(log) {
+  if (!log || !S.autoUpload) return;
+  try {
+    await logSave;
+    if (log.sampleCount < MIN_HISTORY_SAMPLES || !(await strava.status()).connected) return;
+    const r = await rides.get(log.id, false);
+    if (!r || r.upload.status !== "none") return;
+    await rides.setUpload(log.id, { status: "pending" });
+    refreshUploads();
+    runQueue();
+  } catch (e) { /* storage trouble: the ride can still be uploaded by hand */ }
+}
 async function uploadOne(id) {
   const ride = await rides.get(id);
   if (!ride) return "next";
@@ -1117,7 +1133,7 @@ async function drawStrava() {
   const st = await strava.status().catch(() => ({ configured: false, connected: false }));
   U.connected = st.connected;
   $("stravaState").textContent = U.needsAuth ? "Strava needs you to connect again. Rides waiting to upload will go once you do."
-    : st.connected ? `Connected${st.name ? " as " + st.name : ""}. Rides can go to Strava in one tap.`
+    : st.connected ? `Connected${st.name ? " as " + st.name : ""}. ${S.autoUpload ? "Rides go to Strava when they end." : "Rides can go to Strava in one tap."}`
     : st.configured ? "Not connected yet." : "Not set up. Rides can still be downloaded as TCX files and added at strava.com.";
   $("stravaConnect").hidden = !st.configured || (st.connected && !U.needsAuth);
   $("stravaConnect").textContent = U.needsAuth ? "Connect Strava again" : "Connect Strava";
@@ -1126,6 +1142,7 @@ async function drawStrava() {
 }
 // Filled once at start-up, so a refresh of the panel never overwrites what's being typed.
 $("setClientId").value = S.stravaClientId; $("setHelper").value = S.stravaHelper; $("setPos").checked = S.tcxPositions;
+$("setAuto").checked = S.autoUpload;
 $("stravaConnect").addEventListener("click", async () => {
   try { location.href = await strava.connectUrl(location.origin + location.pathname); }
   catch (e) { $("stravaMsg").textContent = e.message; }
@@ -1140,6 +1157,7 @@ $("stravaOff").addEventListener("click", async () => {
   S.stravaClientId = $("setClientId").value; S.stravaHelper = $("setHelper").value; sanitize(S); saveSettings(); drawStrava();
 }));
 $("setPos").addEventListener("change", () => { S.tcxPositions = $("setPos").checked; saveSettings(); });
+$("setAuto").addEventListener("change", () => { S.autoUpload = $("setAuto").checked; saveSettings(); drawStrava(); });
 
 // Coming back from Strava's sign-in page: the address carries ?code=…&state=… (or ?error=…).
 async function handleStravaReturn() {

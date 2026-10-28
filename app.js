@@ -10,13 +10,13 @@ const $ = id => document.getElementById(id);
 const TAH = window.TAH;
 
 // Must match <meta name="app-version"> in index.html (and is bumped with sw.js's cache version).
-const APP_VERSION = "23";
+const APP_VERSION = "24";
 {
   const page = document.querySelector('meta[name="app-version"]');
   if (!page || page.content !== APP_VERSION) throw new Error(`index.html and app.js are from different versions (${page ? page.content : "older"} and ${APP_VERSION}). Upload both from the same zip.`);
   // Each helper file must have loaded; name the first one that didn't.
   const need = { "climbs.js": "detectClimbs", "profileCanvas.js": "drawProfile", "routePrep.js": "prepareRoute", "speedModel.js": "makeSettings",
-    "rideSession.js": "createRideSession", "resistance.js": "createResistanceCoach", "tcx.js": "buildTcx", "rideStore.js": "createRideStore", "strava.js": "createStrava" };
+    "rideSession.js": "createRideSession", "resistance.js": "createResistanceCoach", "tcx.js": "buildTcx", "rideStore.js": "createRideStore", "strava.js": "createStrava", "recap.js": "effortScore" };
   for (const f in need) if (!TAH || typeof TAH[need[f]] !== "function") throw new Error(`The file ${f} is missing or out of date. Upload it with the other app files.`);
 }
 const STEP = TAH.GRID_STEP_M;            // routes are resampled every 10 m
@@ -371,7 +371,8 @@ async function openRide(m) {
   R.session = TAH.createRideSession({
     route: R.route, startDistM: m.pos || 0, stats: m.stats,
     getInputs: rideInputs, getModelSettings: modelSettings,
-    onState: update, onFinish: finished, onAutoPause: showAutoPause, onFlush: saveSamples
+    onState: update, onFinish: finished, onAutoPause: showAutoPause, onFlush: saveSamples,
+    logExtras: () => ({ resSug: R.resShown, resBike: bikeRes() })   // for the recap's resistance score
   });
   TAH.currentRide = R.session;
   shown.clear();
@@ -406,7 +407,8 @@ function beginLog() {
   if (R.log) return;
   const st = R.session.state;
   R.log = { id: newId(), routeId: R.meta.id, routeName: R.meta.name, startedAt: Date.now(), endedAt: null,
-    startDistM: st.distM, endDistM: st.distM, finished: false, hasTrack: R.route.hasTrack, sampleCount: 0, chunks: 0 };
+    startDistM: st.distM, endDistM: st.distM, finished: false, hasTrack: R.route.hasTrack, sampleCount: 0, chunks: 0,
+    routeTotalM: R.route.totalDistM, resStep: S.resStep };
   rides.prune(KEEP_RIDE_LOGS).catch(() => {});
 }
 let logSave = Promise.resolve();
@@ -611,11 +613,12 @@ function showAutoPause() { update(); }
 
 // Summary of the ride just ended (from its own log, so it matches history and the Strava upload).
 // how: "end" (rode to the end of the route), "finish" (tapped Finish route part-way), "save" (spot kept).
-function showSummary(sum, how) {
+function showSummary(sum, how, score) {
   const avg = sum.movingS > 0 ? sum.distM / sum.movingS * 3.6 : 0;
   let t = `${fmtT(sum.movingS)} of riding over ${fmtDShort(sum.distM)}, averaging ${spdOut(avg)} ${sUnit()}`;
   if (sum.avgPowerW != null) t += ` and ${Math.round(sum.avgPowerW)} watts`;
   t += sum.ascentM > 1 ? `. You climbed ${fmtE(sum.ascentM)} ${eUnit()}.` : ".";
+  if (score) t += ` Resistance score: ${score.pct}%.`;
   if (how === "save") t += " Your spot on the route is saved, so you can continue it any time.";
   if (how === "finish") t += ` The route is marked finished at ${fmtDShort(R.session.state.distM)} of ${fmtDShort(R.route.totalDistM)}.`;
   $("sumTitle").textContent = how === "end" ? "Route finished" : how === "finish" ? "Ride finished" : "Ride saved";
@@ -646,11 +649,11 @@ function endRide(how) {
   closeEndSheet();
   if (R.session.state.running) R.session.pause();
   if (how === "finish") R.meta.done = true;
-  const sum = TAH.summarize(R.session.samples);
+  const sum = TAH.summarize(R.session.samples), score = TAH.effortScore(R.session.samples, { stepSize: S.resStep });
   const log = endLog(); U.lastRideId = log ? log.id : null;
   autoUpload(log);
   saveProgress(); releaseScreen();
-  if (log && sum.elapsedS >= 1) showSummary(sum, how);
+  if (log && sum.elapsedS >= 1) showSummary(sum, how, score);
   update();
 }
 function finished() { endRide("end"); }
@@ -1057,6 +1060,7 @@ async function drawSummaryUpload() {
   $("sumMsg").innerHTML = uploadLine(r) || (U.connected ? "" : "To upload in one tap, connect Strava in Settings.");
 }
 $("sumUp").addEventListener("click", () => { if (U.lastRideId) requestUpload(U.lastRideId); });
+$("sumRecap").addEventListener("click", () => { if (U.lastRideId) go("recap", { replace: true, state: { rideId: U.lastRideId } }); });
 $("sumTcx").addEventListener("click", async () => {
   try { $("sumMsg").textContent = exportedMsg(await exportTcx(U.lastRideId)); }
   catch (e) { $("sumMsg").textContent = e.message; }
@@ -1108,19 +1112,21 @@ async function drawHistory() {
         <span class="upst" data-st="${esc(r.id)}">${uploadLine(r)}</span>
         <span class="sr-only">${esc(when(r.startedAt))}</span>
       </div>
-      <div class="acts"><button data-act="tcx" data-id="${esc(r.id)}">Download TCX</button>${up}<button data-act="del" data-id="${esc(r.id)}">Delete</button></div>
+      <div class="acts"><button data-act="recap" data-id="${esc(r.id)}">Recap</button><button data-act="tcx" data-id="${esc(r.id)}">Download TCX</button>${up}<button data-act="del" data-id="${esc(r.id)}">Delete</button></div>
     </li>`;
   }).join("");
 }
 function refreshUploads() {
   if (page === "history") drawHistory();
+  if (page === "recap") drawRecapUpload();
   if (!$("summary").hidden) drawSummaryUpload();
 }
 $("hist").addEventListener("click", async ev => {
   const b = ev.target.closest("button"); if (!b) return;
   const id = b.dataset.id;
   try {
-    if (b.dataset.act === "tcx") { const how = await exportTcx(id); $("histMsg").textContent = exportedMsg(how); }
+    if (b.dataset.act === "recap") go("recap", { state: { rideId: id, from: "history" } });
+    else if (b.dataset.act === "tcx") { const how = await exportTcx(id); $("histMsg").textContent = exportedMsg(how); }
     else if (b.dataset.act === "up") requestUpload(id);
     else if (b.dataset.act === "again" && confirm("Upload this ride to Strava again? Do this after deleting it on Strava, for example to add its map. If it's still there, Strava will say it's already uploaded.")) requestUpload(id, true);
     else if (b.dataset.act === "del") {
@@ -1174,11 +1180,145 @@ async function handleStravaReturn() {
   drawStrava();
 }
 
+/* ========== Ride recap ==========
+   After a ride (from the finish summary) or from Ride history: a resistance score for how closely
+   the knob followed the suggestion (recap.js), the ride's numbers, a map of the route with the
+   ride drawn on it, and charts over the ride's time. */
+const RC = { ride: null, route: null, ask: 0, redraw: 0 };
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+async function drawRecap() {
+  const id = history.state && history.state.rideId, ask = ++RC.ask;   // a later call wins if two overlap
+  RC.ride = null; RC.route = null;
+  let ride = null, p = null, problem = "";
+  try {
+    await logSave;
+    ride = id ? await rides.get(id) : null;
+    // The route's own outline for the map (from storage, so it works before the route list has loaded).
+    if (ride && ride.samples.length) p = await getProfile(ride.routeId).catch(() => null);
+  } catch (e) { problem = "Couldn't read this ride from the phone's storage. Close the app fully and open it again. "; }
+  if (ask !== RC.ask) return;
+  if (!ride || !ride.samples.length) {
+    $("recapGone").firstChild.textContent = problem || (ride ? "This ride has no recorded data. " : "This ride isn't on this phone any more. ");
+    $("recapGone").hidden = false; $("recapBody").hidden = true;
+    return;
+  }
+  $("recapGone").hidden = true; $("recapBody").hidden = false;
+  RC.ride = ride;
+  if (p && p.lat && p.lon && p.lat.length) RC.route = { lat: p.lat, lon: p.lon };
+  const m = metas.find(x => x.id === ride.routeId);
+  const samples = ride.samples, sum = TAH.summarize(samples), ex = TAH.rideExtras(samples);
+  const avgKmh = sum.movingS > 0 ? sum.distM / sum.movingS * 3.6 : 0;   // as the finish summary and Strava work it out
+
+  $("rcName").textContent = ride.routeName || "Ride";
+  $("rcWhen").textContent = when(ride.startedAt);
+  drawEffort(TAH.effortScore(samples, { stepSize: ride.resStep || 5 }), samples.some(x => x.resSug != null));
+
+  // The numbers Strava shows for a ride, where this ride has them.
+  const t = [[fmtDShort(sum.distM), "Distance"], [fmtT(sum.movingS), "Moving time"],
+    [fmtT(ride.endedAt ? Math.max(sum.elapsedS, (ride.endedAt - ride.startedAt) / 1000) : sum.elapsedS), "Total time"],
+    [`${spdOut(avgKmh)}<small>${sUnit()}</small>`, "Avg speed"], [`${spdOut(sum.maxSpeedMps * 3.6)}<small>${sUnit()}</small>`, "Top speed"],
+    [`${fmtE(sum.ascentM)}<small>${eUnit()}</small>`, "Climbed"]];
+  if (sum.avgPowerW != null) t.push([`${Math.round(sum.avgPowerW)}<small>W</small>`, "Avg power"], [`${Math.round(sum.maxPowerW)}<small>W</small>`, "Top power"], [Math.round(sum.kJ).toLocaleString(), "Calories"]);
+  if (ex.avgCadenceRpm != null) t.push([`${Math.round(ex.avgCadenceRpm)}<small>rpm</small>`, "Avg cadence"]);
+  if (sum.avgHrBpm != null) t.push([`${Math.round(sum.avgHrBpm)}<small>bpm</small>`, "Avg heart rate"], [`${Math.round(ex.maxHrBpm)}<small>bpm</small>`, "Top heart rate"]);
+  $("rcStats").innerHTML = t.map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join("");
+
+  const total = ride.routeTotalM || (m && m.total) || 0, hasMap = !!RC.route || samples.some(x => x.lat != null);
+  let txt = total ? `You rode ${fmtDShort(sum.distM)} of the ${fmtDShort(total)} route (${Math.min(100, Math.round(sum.distM / total * 100))}%)` : `You rode ${fmtDShort(sum.distM)}`;
+  txt += ride.finished ? " and reached the end." : ".";
+  $("rcMapText").textContent = hasMap ? txt : txt + " This route has no map positions, so there's no map.";
+  $("rcMap").hidden = !hasMap; $("rcLegend").innerHTML = "";
+
+  // Charts: resistance (suggested and the bike's knob), speed, power, heart rate, elevation.
+  const has = k => samples.some(x => x[k] != null);
+  const C = [];
+  if (has("resSug")) C.push({ key: "res", title: "Resistance", note: has("resBike") ? "Suggested, and where your knob was" : "Suggested level" });
+  C.push({ key: "speed", title: "Speed", note: `Average ${spdOut(avgKmh)}, top ${spdOut(sum.maxSpeedMps * 3.6)} ${sUnit()}` });
+  if (sum.avgPowerW != null) C.push({ key: "power", title: "Power", note: `Average ${Math.round(sum.avgPowerW)}, top ${Math.round(sum.maxPowerW)} W` });
+  if (sum.avgHrBpm != null) C.push({ key: "hr", title: "Heart rate", note: `Average ${Math.round(sum.avgHrBpm)}, top ${Math.round(ex.maxHrBpm)} bpm` });
+  if (has("eleM")) C.push({ key: "ele", title: "Elevation", note: `${fmtE(sum.ascentM)} ${eUnit()} climbed` });
+  $("rcCharts").innerHTML = C.map(c => `<div class="chart"><div class="chead"><b>${c.title}</b><span>${esc(c.note)}</span></div>
+    <canvas data-chart="${c.key}" role="img" aria-label="${c.title} over the ride"></canvas>
+    ${c.key === "res" && has("resBike") ? `<div class="rclegend"><span><i style="background:var(--muted)"></i>Suggested</span><span><i style="background:var(--accent-text)"></i>Your knob</span></div>` : ""}</div>`).join("");
+  $("rcEnd").textContent = fmtT(sum.elapsedS);
+  drawRecapCanvases();
+  drawRecapUpload();
+}
+
+function drawEffort(e, logged) {
+  $("rcPct").textContent = e ? e.pct + "%" : "–";
+  $("rcBar").hidden = !e;
+  if (!e) {
+    $("rcEffText").textContent = logged ? "Your bike didn't report its resistance level on this ride, so there's no score. The score needs a bike that shares its level over Bluetooth."
+      : "Rides from before the recap was added don't have a resistance score.";
+    return;
+  }
+  const met = e.onS + e.overS;
+  let t = e.pct === 100 ? `You matched or beat the suggested resistance the whole ride.`
+    : `You matched or beat the suggested resistance for ${fmtT(met)} of ${fmtT(e.ratedS)}, and rode below it for ${fmtT(e.underS)}.`;
+  if (e.overS >= 60) t += ` You went harder than suggested for ${fmtT(e.overS)}.`;
+  if (e.ratedS < e.movingS * 0.8) t += ` The bike reported its level for only ${fmtT(e.ratedS)} of your ${fmtT(e.movingS)} of riding, so the score covers that part.`;
+  $("rcEffText").textContent = t;
+  $("rcBarOn").style.width = (met / e.ratedS * 100) + "%";
+  $("rcBarLow").style.width = (e.underS / e.ratedS * 100) + "%";
+}
+
+// Canvases are drawn at their size on screen, so this runs again on resize.
+function drawRecapCanvases() {
+  const ride = RC.ride; if (!ride || page !== "recap") return;
+  const samples = ride.samples, colors = { route: cssVar("--descent"), ride: cssVar("--accent"), none: cssVar("--muted"), on: cssVar("--g-easy"), over: cssVar("--g-easy"),
+    under: cssVar("--g-moderate"), way: cssVar("--g-steep"), start: cssVar("--g-easy"), end: cssVar("--accent"), bg: cssVar("--paper"), grid: cssVar("--line") };
+  const rated = TAH.rateRide(samples, ride.resStep || 5), scored = rated.some(Boolean);
+  if (!$("rcMap").hidden) {
+    const v = { c: $("rcMap") }; fitCanvas(v);
+    // The ride coloured by its rating: green matched or above, yellow a little below, red well below.
+    // Unscored stretches (stopped, or turning the knob) are grey; with no score at all, the ride is orange.
+    const kindOf = r => !r ? (scored ? "none" : "ride") : r.kind === "under" ? (r.credit >= 0.8 ? "under" : "way") : "on";
+    const pts = samples.map((x, i) => ({ lat: x.lat, lon: x.lon, kind: kindOf(rated[i]) })), seen = new Set(pts.map(q => q.kind));
+    TAH.drawMap(v.ctx, { routeLat: RC.route && RC.route.lat, routeLon: RC.route && RC.route.lon, ride: pts, colors, width: v.w, height: v.h });
+    $("rcLegend").innerHTML = [["on", "--g-easy", "Matched or above the suggestion"], ["under", "--g-moderate", "A little below"], ["way", "--g-steep", "Well below"],
+      ["none", "--muted", "Not scored (stopped, or turning the knob)"], ["ride", "--accent", "Your ride"], ["route", "--descent", "Rest of the route"]]
+      .filter(([k]) => k === "route" ? !!RC.route : k === "on" ? scored : seen.has(k))
+      .map(([, c, l]) => `<span><i style="background:var(${c})"></i>${l}</span>`).join("");
+  }
+  const kmh = isMi() ? 3.6 / 1.609344 : 3.6, eleK = isMi() ? 1 / FT : 1;
+  document.querySelectorAll("#rcCharts canvas").forEach(c => {
+    const v = { c }; fitCanvas(v);
+    const n = Math.max(20, Math.round(v.w / 2)), b = fn => TAH.buckets(samples, n, fn), k = c.dataset.chart;
+    const lines = {
+      res: [{ values: b(x => x.resSug), color: cssVar("--muted"), dash: [5, 4] }, { values: b(x => x.resBike), color: cssVar("--accent-text"), width: 2.5 }],
+      speed: [{ values: b(x => x.speedMps * kmh), color: cssVar("--ridge"), fill: true }],
+      power: [{ values: b(x => x.powerW), color: cssVar("--accent-text"), fill: true }],
+      hr: [{ values: b(x => x.hrBpm), color: cssVar("--g-steep") }],
+      ele: [{ values: b(x => x.eleM == null ? null : x.eleM * eleK), color: cssVar("--g-easy"), fill: true }]
+    }[k];
+    TAH.drawChart(v.ctx, { lines, min: k === "ele" || k === "hr" ? null : 0, colors, width: v.w, height: v.h });
+  });
+}
+if ("ResizeObserver" in window) new ResizeObserver(() => { cancelAnimationFrame(RC.redraw); RC.redraw = requestAnimationFrame(drawRecapCanvases); }).observe($("recapBody"));
+
+async function drawRecapUpload() {
+  if (!RC.ride) return;
+  const r = await rides.get(RC.ride.id, false).catch(() => null);
+  if (!r) return;
+  const u = r.upload || {}, busy = U.live.has(r.id) || u.status === "pending" || u.status === "processing";
+  $("rcUp").hidden = !U.connected || u.status === "uploaded";
+  $("rcUp").disabled = busy;
+  $("rcUp").textContent = u.status === "failed" ? "Try Strava again" : "Upload to Strava";
+  $("rcMsg").innerHTML = uploadLine(r);
+}
+$("rcUp").addEventListener("click", () => { if (RC.ride) requestUpload(RC.ride.id); });
+$("rcTcx").addEventListener("click", async () => {
+  try { $("rcMsg").textContent = exportedMsg(await exportTcx(RC.ride.id)); }
+  catch (e) { $("rcMsg").textContent = e.message; }
+});
+
 /* ========== Pages ==========
    Home, Start a ride, Browse routes, Ride history, Info, Settings and the ride itself. Each page
    has its own address (#routes, #history…), so the phone's back gesture moves between them. */
-const PAGES = ["home", "start", "routes", "history", "info", "settings", "ride"];
-const TITLES = { home: "Trail at Home", start: "Start a ride", routes: "Browse routes", history: "Ride history", info: "Info", settings: "Settings", ride: "Ride" };
+const PAGES = ["home", "start", "routes", "history", "info", "settings", "ride", "recap"];
+const TITLES = { home: "Trail at Home", start: "Start a ride", routes: "Browse routes", history: "Ride history", info: "Info", settings: "Settings", ride: "Ride", recap: "Ride recap" };
 let page = "home";
 const pageFromHash = () => { const h = location.hash.slice(1); return PAGES.includes(h) ? h : "home"; };
 const depth = () => (history.state && history.state.depth) || 0;   // pages stacked above Home
@@ -1222,7 +1362,10 @@ document.addEventListener("click", e => {
     if (g.dataset.anchor) $(g.dataset.anchor).scrollIntoView({ block: "start" });   // e.g. Settings → the Strava steps in Info
     return;
   }
-  if (e.target.closest("[data-back]")) { if (page === "settings" && R.meta) history.back(); else goHome(); }
+  if (e.target.closest("[data-back]")) {
+    // Back to the ride from Settings mid-ride, and back to the list from a recap opened in Ride history.
+    if ((page === "settings" && R.meta) || (page === "recap" && history.state && history.state.from === "history")) history.back(); else goHome();
+  }
 });
 
 const ENTER = {
@@ -1240,7 +1383,8 @@ const ENTER = {
       $("storageInfo").textContent = `${metas.length} of ${MAX_ROUTES} routes and ${n} ride${n === 1 ? "" : "s"} are stored on this phone only.`;
     }).catch(() => {});
   },
-  ride() { update(); layoutProfiles(); if (!$("summary").hidden) drawSummaryUpload(); }
+  ride() { update(); layoutProfiles(); if (!$("summary").hidden) drawSummaryUpload(); },
+  recap: drawRecap
 };
 const refreshPage = () => ENTER[page]();
 // Tabs swap pages rather than stacking them, so the phone's back gesture from any tab goes Home.

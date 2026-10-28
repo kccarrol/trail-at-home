@@ -9,6 +9,7 @@ const pc = require("./profileCanvas.js");
 const { buildTcx, summarize } = require("./tcx.js");
 const { avgGrade, roundToStep, createResistanceCoach, createKnobReader, bikeOffBy } = require("./resistance.js");
 const { createStrava } = require("./strava.js");
+const recap = require("./recap.js");
 
 let failed = 0;
 function test(name, fn) {
@@ -278,6 +279,57 @@ test("the bike's knob counts as matching within 2 levels for steps of 5", () => 
   assert.equal(bikeOffBy(47, 45, 5), 0); assert.equal(bikeOffBy(43, 45, 5), 0);
   assert.equal(bikeOffBy(48, 45, 5), 3); assert.equal(bikeOffBy(40, 45, 5), -5);
   assert.equal(bikeOffBy(41, 45, 10), 0); assert.equal(bikeOffBy(48, 45, 1), 3);
+});
+
+console.log("Ride recap");
+// A 1 Hz log: each entry is [resSug, resBike] for one second, riding at 8 m/s.
+const resLog = levels => levels.map(([s, b], i) => ({ elapsedS: i, speedMps: 8, resSug: s, resBike: b, lat: 37 + i * 1e-4, lon: -120 }));
+const repeat = (n, v) => Array.from({ length: n }, () => v);
+test("matching or beating the suggestion the whole ride scores 100%", () => {
+  const e = recap.effortScore(resLog([...repeat(60, [30, 31]), ...repeat(60, [30, 45])]), { stepSize: 5 });
+  assert.equal(e.pct, 100); assert.ok(e.underS === 0 && e.overS >= 59, JSON.stringify(e));
+});
+test("easing off for a stretch lowers the score in proportion", () => {
+  // 100 s at the suggested 40, then 100 s at 20 (half of it): about 75%.
+  const e = recap.effortScore(resLog([...repeat(100, [40, 40]), ...repeat(100, [40, 20])]), { stepSize: 5 });
+  assert.ok(Math.abs(e.pct - 75) <= 1, `got ${e.pct}%`); assert.ok(Math.abs(e.underS - 100) <= 1);
+});
+test("a tiny shortfall never rounds up to 100%", () => {
+  const e = recap.effortScore(resLog([...repeat(1000, [40, 40]), ...repeat(3, [40, 30])]), { stepSize: 5 });
+  assert.equal(e.pct, 99);
+});
+test("the seconds after the suggestion changes aren't scored, so there's time to turn the knob", () => {
+  // The suggestion jumps from 30 to 50; the knob takes 4 s to follow.
+  const log = resLog([...repeat(60, [30, 30]), ...repeat(4, [50, 30]), ...repeat(60, [50, 50])]);
+  assert.equal(recap.effortScore(log, { stepSize: 5 }).pct, 100);
+  const slow = resLog([...repeat(60, [30, 30]), ...repeat(20, [50, 30]), ...repeat(60, [50, 50])]);
+  assert.ok(recap.effortScore(slow, { stepSize: 5 }).pct < 100);
+});
+test("no score without the bike's level; stopped time isn't scored", () => {
+  assert.equal(recap.effortScore(resLog(repeat(60, [30, null])), { stepSize: 5 }), null);
+  assert.equal(recap.effortScore(resLog(repeat(60, [null, null]))), null);
+  const log = resLog([...repeat(60, [30, 30]), ...repeat(60, [30, 5])]);
+  for (let i = 60; i < 120; i++) log[i].speedMps = 0;
+  assert.equal(recap.effortScore(log, { stepSize: 5 }).pct, 100);
+});
+test("ride extras: average cadence counts moving time only", () => {
+  const log = resLog(repeat(10, [30, 30])).map((x, i) => Object.assign(x, { speedMps: i < 5 ? 10 : 0, cadenceRpm: i < 5 ? 90 : 0, hrBpm: 100 + i }));
+  const ex = recap.rideExtras(log);
+  assert.equal(ex.avgCadenceRpm, 90); assert.equal(ex.maxHrBpm, 109);
+});
+test("charts average the ride into equal slices of time, with gaps where there's no data", () => {
+  const log = resLog(repeat(100, [30, 30])).map((x, i) => Object.assign(x, { powerW: i < 50 ? 100 : null }));
+  const b = recap.buckets(log, 4, x => x.powerW);
+  assert.deepEqual(b, [100, 100, null, null]);
+});
+test("the map keeps the route's shape and fits inside the box", () => {
+  // 1 km north and 1 km east at 60°N: the same size on the map, not twice as wide.
+  const lat = [60, 60 + 1000 / 111195, 60 + 1000 / 111195], lon = [10, 10, 10 + 1000 / (111195 * Math.cos(60.0045 * Math.PI / 180))];
+  const f = recap.fitTrack(lat, lon, 300, 200, 10);
+  const xs = lat.map((la, i) => f.x(la, lon[i])), ys = lat.map((la, i) => f.y(la, lon[i]));
+  assert.ok(Math.abs((xs[2] - xs[1]) - (ys[0] - ys[1])) < 1, `east ${xs[2] - xs[1]}, north ${ys[0] - ys[1]}`);
+  assert.ok(Math.min(...xs) >= 10 && Math.max(...xs) <= 290 && Math.min(...ys) >= 10 && Math.max(...ys) <= 190);
+  assert.ok(ys[1] < ys[0], "north is up");
 });
 
 console.log("Strava export and upload");

@@ -1,7 +1,7 @@
 // Bump this version whenever you change the app files, so phones pick up the update.
-const CACHE = "trail-at-home-v22";
+const CACHE = "trail-at-home-v23";
 const SHELL = ["./", "./index.html", "./app.js", "./climbs.js", "./profileCanvas.js", "./routePrep.js", "./speedModel.js", "./rideSession.js", "./resistance.js", "./tcx.js", "./rideStore.js", "./strava.js", "./manifest.webmanifest",
-  "./icons/icon-192.png", "./icons/icon-512.png", "./icons/icon-maskable-512.png", "./icons/apple-touch-icon.png"];
+  "./icons/icon-192-v2.png", "./icons/icon-512-v2.png", "./icons/icon-maskable-512-v2.png", "./icons/apple-touch-icon-v2.png"];
 
 // Install: fetch every file fresh from the server ({cache: "reload"} skips the browser's own
 // short-term cache), so a new version is never stored alongside leftovers from the old one.

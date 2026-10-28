@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Trail at Home</title>
 <meta name="theme-color" content="#0F1612">
-<meta name="app-version" content="19">
+<meta name="app-version" content="20">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -484,6 +484,7 @@ summary{font-weight:600;cursor:pointer}
       <li><b>Connect the app.</b> In Settings, under Strava, open One-time setup, enter the Client ID and helper address, tap Connect Strava, and leave "Upload your activities" ticked.</li>
     </ol>
     <p>Uploads are marked as virtual rides and never added twice. Rides that can't upload right away (no signal, Strava busy) go the next time the app opens online.</p>
+    <p>To skip the tap, turn on "Upload rides to Strava automatically" in Settings, under Strava. Each ride is then sent as soon as it ends.</p>
     <h2>Your data</h2>
     <p>Routes, rides and settings are stored only on this phone. Nothing leaves it unless you upload a ride to Strava.</p>
   </section>
@@ -534,6 +535,8 @@ summary{font-weight:600;cursor:pointer}
         <button class="secondary" id="stravaOff" hidden>Disconnect</button>
       </div>
       <p class="upmsg" id="stravaMsg" role="status"></p>
+      <label class="check"><input type="checkbox" id="setAuto"><span>Upload rides to Strava automatically when they end</span></label>
+      <p class="small">Each ride is sent as soon as you finish or stop it. With no signal, it waits and goes the next time the app is open online. Rides shorter than 10 seconds aren't sent.</p>
       <label class="check"><input type="checkbox" id="setPos"><span>Include map positions in rides sent to Strava</span></label>
       <p class="small">With positions, the ride appears on the real route's map on Strava. It's marked as a virtual ride, but people may still take it for an outdoor ride. Untick this to send only distance, elevation, speed, power, cadence and heart rate.</p>
       <details id="setupBox">

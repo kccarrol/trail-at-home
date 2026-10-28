@@ -357,6 +357,20 @@ def suite_strava(browser, base):
         status = page.evaluate(f"TAH.rides.get('{rid}', false).then(r => r.upload.status)")
         if status == "uploaded": break
     check("a ride left waiting uploads when the app reopens", status == "uploaded" and len(state["posts"]) - n == 1, status)
+    # Upload automatically: the next ride goes to Strava when it ends, without tapping Upload.
+    check("automatic upload is off until turned on", not page.evaluate("JSON.parse(localStorage.getItem('tah-settings') || '{}').autoUpload"))
+    page.click('[data-tab="settings"]'); page.clock.run_for(500)
+    page.check("#setAuto"); page.clock.run_for(500)
+    check("Settings says rides go to Strava when they end", "when they end" in page.text_content("#stravaState"), page.text_content("#stravaState"))
+    page.click('[data-tab="routes"]'); page.wait_for_selector("#routes .route")
+    n = len(state["posts"])
+    ride_route(page, "Test hill", 220); page.clock.run_for(60_000)
+    page.click("#endRide"); page.click("#saveSpot")
+    for _ in range(15):
+        page.clock.run_for(2000); page.wait_for_timeout(100)
+        if "virtual ride" in page.text_content("#sumMsg"): break
+    check("with automatic upload on, the ride goes to Strava without a tap",
+          len(state["posts"]) - n == 1 and "On Strava as a virtual ride" in page.text_content("#sumMsg"), page.text_content("#sumMsg"))
     no_errors(page); ctx.close()
 
 

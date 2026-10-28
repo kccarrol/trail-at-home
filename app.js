@@ -10,7 +10,7 @@ const $ = id => document.getElementById(id);
 const TAH = window.TAH;
 
 // Must match <meta name="app-version"> in index.html (and is bumped with sw.js's cache version).
-const APP_VERSION = "20";
+const APP_VERSION = "21";
 {
   const page = document.querySelector('meta[name="app-version"]');
   if (!page || page.content !== APP_VERSION) throw new Error(`index.html and app.js are from different versions (${page ? page.content : "older"} and ${APP_VERSION}). Upload both from the same zip.`);

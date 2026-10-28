@@ -64,7 +64,7 @@ On the ride page, a bar pinned to the bottom of the screen shows Ready, Riding, 
    Deploy, and copy the Worker's address (it ends in `.workers.dev`).
 4. **Connect the app.** In Settings, under Strava, open "One-time setup". Enter the Client ID and the helper address, tap "Connect Strava", sign in, and leave "Upload your activities" ticked.
 
-After that, "Upload to Strava" sends the ride, marks it as a trainer ride, and changes its type to Virtual Ride. Rides that can't upload (no signal, Strava busy) wait and go the next time the app opens online. The same ride is never added twice. To remove the app's access later, go to strava.com, Settings, My Apps.
+After that, "Upload to Strava" sends the ride and changes its type to Virtual Ride, which shows the route's map. (A ride sent without map positions is also marked as an indoor trainer ride.) Rides that can't upload (no signal, Strava busy) wait and go the next time the app opens online. The same ride is never added twice. To remove the app's access later, go to strava.com, Settings, My Apps.
 
 **Automatic upload:** tick "Upload rides to Strava automatically when they end" in Settings, under Strava. Each ride then goes to Strava as soon as you finish or stop it, without a tap. Rides shorter than 10 seconds are skipped.
 

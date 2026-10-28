@@ -338,8 +338,9 @@ def suite_strava(browser, base):
         page.clock.run_for(2500); page.wait_for_timeout(100)
         if "virtual ride" in page.text_content("#sumMsg"): break
     check("back online, the ride uploads as a virtual ride", "On Strava as a virtual ride" in page.text_content("#sumMsg"), page.text_content("#sumMsg"))
-    check("the upload is a trainer ride with TCX data", state["posts"] and state["posts"][0]["trainer"] and state["posts"][0]["tcx"])
-    check("the activity type was set to Virtual Ride", state["puts"] == [{"sport_type": "VirtualRide", "trainer": True}], state["puts"])
+    check("the upload has TCX data and, having a map, isn't marked as on a trainer (Strava would hide the map)",
+          state["posts"] and not state["posts"][0]["trainer"] and state["posts"][0]["tcx"])
+    check("the activity type was set to Virtual Ride", state["puts"] == [{"sport_type": "VirtualRide"}], state["puts"])
     check("the summary links to the Strava activity", page.get_attribute("#sumMsg a", "href") == "https://www.strava.com/activities/777")
     page.click("#back"); page.clock.run_for(500); page.click('[data-tab="history"]'); page.clock.run_for(500); page.wait_for_timeout(300)
     rid = page.evaluate("TAH.rides.list().then(l => l[0].id)")

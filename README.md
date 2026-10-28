@@ -66,6 +66,8 @@ On the ride page, a bar pinned to the bottom of the screen shows Ready, Riding, 
 
 After that, "Upload to Strava" sends the ride and changes its type to Virtual Ride, which shows the route's map. (A ride sent without map positions is also marked as an indoor trainer ride.) Rides that can't upload (no signal, Strava busy) wait and go the next time the app opens online. The same ride is never added twice. To remove the app's access later, go to strava.com, Settings, My Apps.
 
+**Upload again:** after deleting a ride on Strava, tap "Upload again" on it in Ride history to send it once more.
+
 **Automatic upload:** tick "Upload rides to Strava automatically when they end" in Settings, under Strava. Each ride then goes to Strava as soon as you finish or stop it, without a tap. Rides shorter than 10 seconds are skipped.
 
 **Privacy:** by default the file includes the route's real GPS positions, so the ride shows on that route's map on Strava. It's labelled a virtual ride, but people may still take it for an outdoor ride. Untick "Include map positions" in the Strava section to leave them out.

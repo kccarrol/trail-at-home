@@ -10,7 +10,7 @@ const $ = id => document.getElementById(id);
 const TAH = window.TAH;
 
 // Must match <meta name="app-version"> in index.html (and is bumped with sw.js's cache version).
-const APP_VERSION = "21";
+const APP_VERSION = "22";
 {
   const page = document.querySelector('meta[name="app-version"]');
   if (!page || page.content !== APP_VERSION) throw new Error(`index.html and app.js are from different versions (${page ? page.content : "older"} and ${APP_VERSION}). Upload both from the same zip.`);
@@ -975,10 +975,11 @@ const exportedMsg = how => how === "shared" ? "Shared." : how === "cancelled" ? 
   : "Saved to your Downloads. To add it to Strava by hand, open strava.com/upload/select in a browser and choose the file.";
 
 /* --- Uploading --- */
-async function requestUpload(id) {
+// again: send a ride that's already on Strava once more (after the rider deleted it there).
+async function requestUpload(id, again = false) {
   await logSave;
   const r = await rides.get(id, false);
-  if (!r || (r.upload && r.upload.status === "uploaded")) return;
+  if (!r || (r.upload && r.upload.status === "uploaded" && !again)) return;
   const keep = r.upload && r.upload.status === "processing" ? r.upload : { status: "pending" };
   await rides.setUpload(id, keep);
   U.needsAuth = false;
@@ -1094,7 +1095,7 @@ async function drawHistory() {
   $("histTotals").textContent = list.length ? rideTotals(list, all) : "";
   $("hist").innerHTML = list.map(r => {
     const u = r.upload || {}, busy = U.live.has(r.id) || u.status === "pending" || u.status === "processing";
-    const up = !U.connected || u.status === "uploaded" ? "" :
+    const up = !U.connected ? "" : u.status === "uploaded" ? `<button data-act="again" data-id="${esc(r.id)}">Upload again</button>` :
       `<button data-act="up" data-id="${esc(r.id)}"${busy ? " disabled" : ""}>${u.status === "failed" ? "Try Strava again" : "Upload to Strava"}</button>`;
     // Date block on the left, like a fixtures list: month, day, weekday.
     const d = new Date(r.startedAt);
@@ -1121,6 +1122,7 @@ $("hist").addEventListener("click", async ev => {
   try {
     if (b.dataset.act === "tcx") { const how = await exportTcx(id); $("histMsg").textContent = exportedMsg(how); }
     else if (b.dataset.act === "up") requestUpload(id);
+    else if (b.dataset.act === "again" && confirm("Upload this ride to Strava again? Do this after deleting it on Strava, for example to add its map. If it's still there, Strava will say it's already uploaded.")) requestUpload(id, true);
     else if (b.dataset.act === "del") {
       const r = await rides.get(id, false);
       if (r && confirm(`Delete the ride on ${when(r.startedAt)}? ${r.upload && r.upload.status === "uploaded" ? "It stays on Strava." : "This can't be undone."}`)) { await rides.remove(id); drawHistory(); }

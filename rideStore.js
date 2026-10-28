@@ -3,7 +3,9 @@
    30-second chunks while riding, so a crash loses little.
 
    Record: { id, routeId, routeName, startedAt, startTimeISO, endedAt, finished, hasTrack,
-             sampleCount, chunks, summary, upload: { status, activityId?, uploadId?, error?, retryable? } }
+             sampleCount, chunks, summary, routeTotalM?, resStep?,
+             upload: { status, activityId?, uploadId?, error?, retryable? } }
+   routeTotalM and resStep (the resistance step size) are missing on rides from before the recap.
    upload.status: "none" | "pending" | "processing" | "uploaded" | "failed"
 
    createRideStore(db) -> { saveChunk, finish, get, list, remove, prune, setUpload }
@@ -22,7 +24,8 @@ const QUEUED = u => u && (u.status === "pending" || u.status === "processing" ||
 
 function createRideStore(db) {
   // Fields owned by the ride while it's being recorded; everything else (upload status) is left alone.
-  const OWN = ["id", "routeId", "routeName", "startedAt", "startTimeISO", "endedAt", "startDistM", "endDistM", "finished", "hasTrack", "sampleCount", "chunks", "summary"];
+  const OWN = ["id", "routeId", "routeName", "startedAt", "startTimeISO", "endedAt", "startDistM", "endDistM", "finished", "hasTrack", "sampleCount", "chunks", "summary",
+    "routeTotalM", "resStep"];
   async function mergePut(store, log) {
     const cur = await reqP(store.get(log.id)) || { upload: { status: "none" } };
     for (const k of OWN) if (k in log) cur[k] = log[k];

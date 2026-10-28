@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Trail at Home</title>
 <meta name="theme-color" content="#0F1612">
-<meta name="app-version" content="20">
+<meta name="app-version" content="21">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -223,6 +223,38 @@ h1[tabindex]:focus-visible{outline:3px solid var(--gear);outline-offset:2px}
 .ride .upst:empty{display:none}
 .ride .acts{grid-column:1/-1}
 
+/* ----- Ride recap ----- */
+.rchead b{display:block;font-family:var(--display);font-size:28px;font-weight:700;line-height:1.05;text-transform:uppercase;overflow-wrap:anywhere}
+.rchead span{font-size:15px;color:var(--muted)}
+.effort{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 14px;align-items:center;background:var(--paper);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:var(--r-lg);padding:14px 16px;margin:12px 0}
+.effnum{text-align:center}
+.effnum b{display:block;font-family:var(--display);font-size:60px;font-weight:800;line-height:.9;font-variant-numeric:tabular-nums;color:var(--accent-text)}
+.effnum span{font-size:13px;color:var(--muted)}
+.effort p{margin:0;font-size:15px;color:var(--muted)}
+.effbar{grid-column:1/-1;display:flex;height:10px;margin-top:8px;border-radius:5px;overflow:hidden;background:var(--raised)}
+.effbar i{display:block;height:100%}
+.effbar .on{background:var(--g-easy)}
+.effbar .low{background:var(--g-moderate)}
+.rcstats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.rcstats div{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-md);padding:8px 10px;min-width:0}
+.rcstats b{display:block;font-family:var(--display);font-size:26px;font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rcstats b small{font-size:.6em;font-weight:600;margin-left:2px}
+.rcstats span{font-size:13px;color:var(--muted)}
+.recap h2{font-family:var(--display);font-size:24px;font-weight:800;text-transform:uppercase;margin:20px 0 8px}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r-lg);padding:10px 12px}
+.card .small{margin:6px 0 0}
+.rcmap{display:block;width:100%;height:min(300px,70vw)}
+.rclegend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--muted);margin-top:6px}
+.rclegend:empty{display:none}
+.rclegend i{display:inline-block;width:14px;height:4px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.chart+.chart{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+.chead{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.chead b{font-weight:600}
+.chead span{font-size:13px;color:var(--muted);text-align:right}
+.chart canvas{display:block;width:100%;height:90px;margin-top:4px}
+.ctime{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:4px}
+.recap .sumacts{margin-top:16px}
+
 /* ----- Info and Settings ----- */
 .info h2,.settings h2{font-family:var(--display);font-size:24px;font-weight:800;text-transform:uppercase;margin:26px 0 8px}
 .info h2:first-of-type,.settings h2:first-of-type{margin-top:4px}
@@ -439,6 +471,40 @@ summary{font-weight:600;cursor:pointer}
     <ul class="hist" id="hist"></ul>
   </section>
 
+  <!-- Ride recap: after a ride, or from Ride history -->
+  <section class="screen recap" id="scr-recap" hidden>
+    <header class="sub-head">
+      <button class="back" data-back aria-label="Back">Back</button>
+      <h1>Ride recap</h1>
+    </header>
+    <p class="empty" id="recapGone" hidden>This ride isn't on this phone any more. <button class="linkbtn" data-go="history">Ride history</button></p>
+    <div id="recapBody">
+      <div class="rchead"><b id="rcName"></b><span id="rcWhen"></span></div>
+      <section class="effort" aria-label="Resistance score">
+        <div class="effnum"><b id="rcPct">–</b><span>Resistance score</span></div>
+        <p id="rcEffText"></p>
+        <div class="effbar" id="rcBar" aria-hidden="true"><i class="on" id="rcBarOn"></i><i class="low" id="rcBarLow"></i></div>
+      </section>
+      <div class="rcstats" id="rcStats"></div>
+      <h2>Map</h2>
+      <section class="card">
+        <canvas class="rcmap" id="rcMap" role="img" aria-label="Map of the route with your ride on it"></canvas>
+        <div class="rclegend" id="rcLegend"></div>
+        <p class="small" id="rcMapText"></p>
+      </section>
+      <h2>Charts</h2>
+      <section class="card">
+        <div id="rcCharts"></div>
+        <div class="ctime"><span>0:00</span><span id="rcEnd"></span></div>
+      </section>
+      <div class="sumacts">
+        <button class="primary" id="rcUp" hidden>Upload to Strava</button>
+        <button class="secondary" id="rcTcx">Download TCX</button>
+      </div>
+      <p class="upmsg" id="rcMsg" role="status"></p>
+    </div>
+  </section>
+
   <!-- Info -->
   <section class="screen info" id="scr-info" hidden>
     <header class="sub-head">
@@ -465,12 +531,15 @@ summary{font-weight:600;cursor:pointer}
     <h2>How speed and resistance work</h2>
     <p>When the bike shares power, your speed is worked out from your watts, your weight (plus 13 kg of bike) and the trail's grade, as if riding a mountain bike on hardpacked dirt. Climbs slow you down, descents carry momentum, and speed tops out at <span id="capNote">56 mph</span>.</p>
     <p>The suggested resistance is your flat-ground level plus a number of levels for each 1% of grade (half as much on descents), using the average grade of the road around you, looking a little ahead (75 m behind to 125 m in front). It moves in steps (5 levels unless you change it in Settings) and changes at most every 20 seconds unless the road changes a lot, so you aren't turning the knob all the time. When it changes, the box turns yellow and says Turn up or Turn down. Hill difficulty in Settings scales both the speed effect and the suggestion.</p>
+    <h2>Your resistance score</h2>
+    <p>If your bike reports its resistance level, the recap scores how closely you followed the suggestion. Every second at the suggested level or above, or within a couple of levels of it, counts in full; a second below it counts for the share you were at (20 when 40 was suggested counts half). The few seconds after each change aren't scored, so you have time to turn the knob, and stopped time doesn't count. 100% means you never rode below the suggestion.</p>
     <h2>While you ride</h2>
     <ul>
       <li>While you ride, the route name and Riding label are hidden to give the trail more room. Settings is the gear button next to Finish. Mid-ride, its This ride section connects the bike or heart rate monitor, and matches the distance on your console.</li>
       <li>A yellow frame around the screen means the ride is paused. If you stop pedaling for 5 seconds, the ride clock pauses until you start again or tap Resume.</li>
       <li>The upper profile shows the trail just ahead; the strip below shows the whole route. Tap the strip to jump to a spot.</li>
       <li>A note appears 1 km before each climb. Tap it to hide it for that climb.</li>
+      <li>After a ride, See recap shows your resistance score, the ride's numbers, a map and charts. Every ride in Ride history has a Recap button too.</li>
       <li>Finish saves the ride to your history and asks what's next. Finish route marks the route finished, so Home stops offering to continue it. Stop for now keeps your spot, so you can continue another day.</li>
       <li>Changed your mind? A finished route can still be picked up where you finished, from the Start from choice. On Routes, Mark finished clears a route you won't come back to.</li>
     </ul>
@@ -564,7 +633,8 @@ summary{font-weight:600;cursor:pointer}
       <h2 id="sumTitle">Route finished</h2>
       <p id="sumText"></p>
       <div class="sumacts" id="sumActs" hidden>
-        <button class="primary" id="sumUp" hidden>Upload to Strava</button>
+        <button class="primary" id="sumRecap">See recap</button>
+        <button class="secondary" id="sumUp" hidden>Upload to Strava</button>
         <button class="secondary" id="sumTcx">Download TCX</button>
       </div>
       <p class="upmsg" id="sumMsg" role="status"></p>
@@ -646,6 +716,7 @@ summary{font-weight:600;cursor:pointer}
 <script src="tcx.js"></script>
 <script src="rideStore.js"></script>
 <script src="strava.js"></script>
+<script src="recap.js"></script>
 <script src="app.js"></script>
 <script>if (!window.__tah.ok) tahFail("The app's main file (app.js) didn't finish starting. It may be from a different version than index.html.");</script>
 </body>

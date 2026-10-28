@@ -9,12 +9,14 @@
      getInputs(),            -> { mode: "power"|"bike"|"manual", powerW, speedMps, cadenceRpm, hrBpm }
      getModelSettings(),     -> speedModel settings (read every tick, so changes apply mid-ride)
      onState(state), onFinish(state), onAutoPause(isPaused), onFlush(samples)
+     logExtras()             -> extra fields for each log sample (the app adds the resistance levels)
      now(), wallNow()        clocks in ms (defaults: performance.now, Date.now; tests pass fakes)
    })
 
    rideState: { elapsedS, distM, speedMps, grade, eleM, lat, lon, powerW, cadenceRpm, hrBpm, ascentM,
                 running, autoPaused, finished }   grade is in percent; lat/lon are null for routes
-   saved before positions were stored. Log samples are rideState snapshots plus t (epoch ms). */
+   saved before positions were stored. Log samples are rideState snapshots plus t (epoch ms) and
+   whatever logExtras() returns. */
 (function (root, factory) {
   if (typeof module === "object" && module.exports) module.exports = factory(require("./routePrep.js"), require("./speedModel.js"));
   else root.TAH = Object.assign(root.TAH || {}, factory(root.TAH, root.TAH));
@@ -56,7 +58,7 @@ function createRideSession(o) {
 
   // nominalS is the whole second of ride time this sample stands for, so log times are exactly 1 s apart.
   function takeSample(tMs, nominalS) {
-    const s = Object.assign({ t: Math.round(tMs) }, refresh());
+    const s = Object.assign({ t: Math.round(tMs) }, refresh(), o.logExtras ? o.logExtras() : null);
     if (nominalS != null) s.elapsedS = nominalS;
     delete s.running; delete s.autoPaused; delete s.finished;
     samples.push(s);

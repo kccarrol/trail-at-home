@@ -30,16 +30,16 @@ screen, and is not a developer: explain changes in plain language.
 
 ## Tests
 
-- Unit tests (Node 18+, no installs): `node run-tests.js`. 44 tests covering the speed model,
-  route prep, climbs, the profile drawing, the ride session, the suggested resistance, TCX export
-  and the Strava client.
+- Unit tests (Node 18+, no installs): `node run-tests.js`. 52 tests covering the speed model,
+  route prep, climbs, the profile drawing, the ride session, the suggested resistance, the ride
+  recap, TCX export and the Strava client.
 - Browser tests (Playwright, headless Chromium):
   - Setup, once: `pip install playwright && python3 -m playwright install chromium`
   - All suites: `python3 tests/browser/run_browser_tests.py` (about 7 minutes)
   - Some suites: `python3 tests/browser/run_browser_tests.py tabs pages`
   - List: `python3 tests/browser/run_browser_tests.py --list`
 
-  Suites: ride, resistance, upgrade, profile, strava, pages, tabs, layout, startup, offline. They use a fake
+  Suites: ride, resistance, upgrade, profile, strava, pages, recap, tabs, layout, startup, offline. They use a fake
   VeloCore (`tests/browser/fake-bluetooth.js`), a fake clock, and a fake Strava. Exit code is
   non-zero on any failure.
 - Real-world checks the tests can't make: an actual VeloCore over Bluetooth, and a real Strava
@@ -57,6 +57,7 @@ screen, and is not a developer: explain changes in plain language.
 | `resistance.js` | Suggested resistance: average grade 75 m behind to 125 m ahead, steps of 5, held ≥20 s; knob check |
 | `climbs.js` | Finds climbs (≥3% for ≥200 m, merged across <100 m gaps, ≥15 m gain) |
 | `profileCanvas.js` | Draws the look-ahead and whole-route elevation profiles on canvas |
+| `recap.js` | Ride recap: resistance score (knob vs suggestion), extra stats, map and chart drawing |
 | `tcx.js` | Builds TCX files and ride summaries |
 | `rideStore.js` | Ride history in IndexedDB (records plus sample chunks), upload status |
 | `strava.js` | Strava sign-in, token refresh, upload, polling, set Virtual Ride, duplicates |
@@ -69,7 +70,7 @@ screen, and is not a developer: explain changes in plain language.
 - Each helper file is a small UMD module: in the browser it adds functions to `window.TAH`, in
   Node it's `require()`-able for the unit tests. Keep them free of DOM access where they are now.
 - `app.js` is one wrapped script with sections marked `/* ========== Name ========== */`.
-- **Pages:** home, start, routes, history, info, settings, ride. Each is `<section id="scr-NAME">`.
+- **Pages:** home, start, routes, history, info, settings, ride, recap. Each is `<section id="scr-NAME">`.
   Navigation is hash-based (`#routes`) through `go(name, {replace, state})`, `goHome()` and
   `showPage()`. `history.state.depth` counts pages above Home, so "Home" unwinds instead of
   stacking. Tabs replace each other rather than stacking. Each page's refresh is in `ENTER`.
@@ -79,6 +80,10 @@ screen, and is not a developer: explain changes in plain language.
   ends the ride (pauses, saves the log and the spot on the route). The pinned Finish button pauses
   and opens a choice: Finish route (`endRide("finish")`, sets the route's `done` flag) or Stop for
   now (`endRide("save")`); reaching the end calls `endRide("end")`.
+- **Ride recap:** each log sample also holds `resSug` (the suggested level shown) and `resBike`
+  (the knob, when the bike reports it). The recap page reads the ride id from `history.state.rideId`
+  and opens from the finish summary (replacing the ride page) or from Ride history (Back returns
+  there). Rides from before version 21 have neither field, so they show no score.
 - **Finished routes:** a route is finished when ridden to the end or when `m.done` is set (Finish
   route, or Mark finished on Routes). Use `isDone()` / `isGoing()` in `app.js`; only an in-progress
   route gets Home's Continue card. Riding it again (from the start or where it was finished) clears

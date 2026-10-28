@@ -100,7 +100,7 @@ def ride_route(page, name, watts, connect=True):
 
 def kmh(page): return float(page.text_content("#spd")) * 1.609344   # the app shows mph by default
 def visible_page(page):
-    return next(n for n in ["home", "start", "routes", "history", "info", "settings", "ride"] if page.is_visible(f"#scr-{n}"))
+    return next(n for n in ["home", "start", "routes", "history", "info", "settings", "ride", "recap"] if page.is_visible(f"#scr-{n}"))
 def no_errors(page): check("no script errors", not page.errors, "; ".join(page.errors[:2]))
 
 MARKER_JS = """([id, fromM, toM]) => {
@@ -457,6 +457,55 @@ def suite_pages(browser, base):
     no_errors(page); ctx.close()
 
 
+def suite_recap(browser, base):
+    """Ride recap: resistance score from the bike's knob, stats, map and charts, opened after a ride and from history."""
+    ctx, page = new_page(browser, viewport=(360, 740))
+    add_routes(page, base, [HILL()])
+    ride_route(page, "Test hill", 250)
+    page.evaluate("__bt.res = 24"); page.clock.run_for(2000); page.evaluate("__bt.res = 25")
+    page.clock.run_for(60_000)                                  # on the flat the knob matches the suggested 25
+    check("the ride log records the suggestion and the knob", page.evaluate("(s => s.resSug === 25 && s.resBike === 25)(TAH.currentRide.samples.at(-1))"),
+          page.evaluate("JSON.stringify(TAH.currentRide.samples.at(-1))"))
+    page.clock.run_for(400_000)                                 # up the climb, the knob stays at 25 (suggestion 55)
+    page.click("#endRide"); page.click("#saveSpot"); page.clock.run_for(1500); page.wait_for_timeout(300)
+    m = re.search(r"Resistance score: (\d+)%", page.text_content("#sumText") or "")
+    check("the finish summary gives the resistance score", m is not None, page.text_content("#sumText"))
+    page.click("#sumRecap"); page.wait_for_selector("#scr-recap:not([hidden])"); page.wait_for_timeout(500)
+    check("See recap opens the recap", visible_page(page) == "recap" and page.text_content("#rcName") == "Test hill")
+    pct = page.text_content("#rcPct")
+    check("easing off on the climb shows a score under 100%", pct.endswith("%") and 20 < int(pct[:-1]) < 100, pct)
+    check("the recap and the summary agree on the score", m is not None and pct == m.group(1) + "%", f"{pct} vs {m and m.group(1)}")
+    check("it says how long the ride was below the suggestion", "rode below it for" in page.text_content("#rcEffText"), page.text_content("#rcEffText"))
+    labels = page.locator("#rcStats span").all_text_contents()
+    check("the stats include distance, times, speed, power and climbing",
+          all(l in labels for l in ["Distance", "Moving time", "Total time", "Avg speed", "Avg power", "Climbed", "Calories"]), labels)
+    check("the route share is given", re.search(r"of the [\d.]+ mi route \(\d+%\)", page.text_content("#rcMapText")) is not None, page.text_content("#rcMapText"))
+    painted = page.evaluate("""() => { const c = document.getElementById('rcMap'), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+      let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i]) n++; return n; }""")
+    check("the map is drawn", painted > 500, f"{painted} px")
+    charts = page.eval_on_selector_all("#rcCharts canvas", "cs => cs.map(c => c.dataset.chart)")
+    check("charts for resistance, speed, power and elevation", charts == ["res", "speed", "power", "ele"], charts)
+    check("the map legend shows the stretches below the suggestion", "A little below" in page.text_content("#rcLegend") or "Well below" in page.text_content("#rcLegend"))
+    check("nothing is wider than a 360 px phone", page.evaluate("document.documentElement.scrollWidth") <= 360, page.evaluate("document.documentElement.scrollWidth"))
+    page.click("#scr-recap [data-back]"); page.wait_for_timeout(300)
+    check("back from a recap after a ride goes Home", visible_page(page) == "home")
+    page.click('[data-tab="history"]'); page.wait_for_timeout(300)
+    page.locator('#hist [data-act="recap"]').first.click(); page.wait_for_selector("#scr-recap:not([hidden])"); page.wait_for_timeout(300)
+    check("Recap on a history ride opens its recap", page.text_content("#rcPct") == pct)
+    page.click("#scr-recap [data-back]"); page.wait_for_timeout(300)
+    check("back from it returns to Ride history", visible_page(page) == "history")
+    # The bike stops reporting its level: no score, and the recap says why.
+    page.evaluate("__bt.res = null"); page.clock.run_for(4000)    # its last reading counts for 3 s
+    page.click('[data-tab="routes"]'); page.wait_for_timeout(200)
+    ride_route(page, "Test hill", 200, connect=False); page.clock.run_for(30_000)
+    page.click("#endRide"); page.click("#saveSpot"); page.clock.run_for(1500); page.wait_for_timeout(300)
+    check("no score in the summary without the bike's level", "Resistance score" not in page.text_content("#sumText"))
+    page.click("#sumRecap"); page.wait_for_selector("#scr-recap:not([hidden])"); page.wait_for_timeout(300)
+    check("the recap explains there's no score", page.text_content("#rcPct") == "–" and "didn't report its resistance level" in page.text_content("#rcEffText")
+          and page.is_hidden("#rcBar"))
+    no_errors(page); ctx.close()
+
+
 def suite_tabs(browser, base):
     """Tab bar: tabs don't pile up history, back from any tab goes Home, hidden in the start flow."""
     ctx, page = new_page(browser, viewport=(390, 844), clock=False, bt=False)
@@ -559,7 +608,7 @@ def suite_offline(browser, base):
         shutil.rmtree(tmp, ignore_errors=True)
 
 
-SUITES = {"ride": suite_ride, "resistance": suite_resistance, "upgrade": suite_upgrade, "profile": suite_profile, "strava": suite_strava, "pages": suite_pages,
+SUITES = {"ride": suite_ride, "resistance": suite_resistance, "upgrade": suite_upgrade, "profile": suite_profile, "strava": suite_strava, "pages": suite_pages, "recap": suite_recap,
           "tabs": suite_tabs, "layout": suite_layout, "startup": suite_startup, "offline": suite_offline}
 
 

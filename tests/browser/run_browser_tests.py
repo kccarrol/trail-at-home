@@ -196,7 +196,7 @@ def suite_resistance(browser, base):
     check("a knob well above says Turn down", page.text_content("#resLbl") == "Turn down")
     page.evaluate("TAH.currentRide.jumpTo(100)"); page.clock.run_for(1000)
     check("after a change down to the flat, a knob still too high says Turn down", page.text_content("#res") == "25" and page.text_content("#resLbl") == "Turn down", page.text_content("#res") + " " + page.text_content("#resLbl"))
-    page.evaluate("__bt.res = 15"); page.clock.run_for(1000)
+    page.evaluate("__bt.res = 15"); page.clock.run_for(2000)    # the bike reports once a second
     check("overshooting the change straight away flips the label to Turn up", page.text_content("#resLbl") == "Turn up", page.text_content("#resLbl"))
     page.click("#go"); page.clock.run_for(1000)
     check("no alert while paused", "alert" not in page.get_attribute("#resBox", "class"))

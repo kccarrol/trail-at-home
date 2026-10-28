@@ -308,7 +308,8 @@ def suite_strava(browser, base):
     page.fill("#setClientId", "123456"); page.dispatch_event("#setClientId", "change")
     page.fill("#setHelper", HELPER); page.dispatch_event("#setHelper", "change")
     page.click("#stravaConnect")
-    page.wait_for_function("document.getElementById('stravaMsg').textContent.includes('Connected')", timeout=10000)
+    # Mid-redirect the page may not be the app yet, so a missing element means "not yet".
+    page.wait_for_function("(document.getElementById('stravaMsg') || {}).textContent?.includes('Connected')", timeout=10000)
     check("connecting asks for upload and private-activity access", state["scope"] == "activity:write,activity:read_all", state.get("scope"))
     check("after signing in, Settings says connected", "Connected as Kane" in page.text_content("#stravaState"))
     page.reload(); page.wait_for_timeout(500)

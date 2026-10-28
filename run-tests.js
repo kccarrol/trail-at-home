@@ -339,6 +339,7 @@ test("tapping the profile mid-ride doesn't add a teleport to the file's distance
 function fakeStrava(script = {}) {
   const kv = new Map(), calls = [];
   let t = 1.8e12, uploads = 0, polls = 0;
+  const sent = {};
   const json = (status, body) => ({ ok: status < 300, status, json: async () => body });
   const fetchFn = async (url, init = {}) => {
     const path = url.replace("https://helper.example", ""), method = init.method || "GET";
@@ -349,7 +350,7 @@ function fakeStrava(script = {}) {
     if (script.expireToken && init.headers.Authorization === "Bearer A1") return json(401, { message: "Authorization Error" });
     if (path === "/api/uploads" && method === "POST") {
       uploads++;
-      assert.equal(init.body.get("data_type"), "tcx"); assert.equal(init.body.get("trainer"), "1");
+      assert.equal(init.body.get("data_type"), "tcx"); sent.trainer = init.body.get("trainer");
       assert.equal(init.body.get("external_id"), "trailathome-r1");
       if (script.busy) return json(429, { message: "Rate Limit Exceeded" });
       return json(201, { id: 99, id_str: "99", status: "Your activity is still being processed.", error: null, activity_id: null });
@@ -360,7 +361,7 @@ function fakeStrava(script = {}) {
       if (script.neverDone || polls < 2) return json(200, { id_str: "99", status: "Your activity is still being processed.", error: null, activity_id: null });
       return json(200, { id_str: "99", status: "Your activity is ready.", error: null, activity_id: 5550001 });
     }
-    if (path === "/api/activities/5550001" && method === "PUT") { assert.deepEqual(JSON.parse(init.body), { sport_type: "VirtualRide", trainer: true }); return json(200, { id: 5550001 }); }
+    if (path === "/api/activities/5550001" && method === "PUT") { sent.put = JSON.parse(init.body); return json(200, { id: 5550001 }); }
     return json(404, { message: "not found" });
   };
   const st = createStrava({
@@ -368,7 +369,7 @@ function fakeStrava(script = {}) {
     kv: { get: async k => kv.get(k), set: async (k, v) => kv.set(k, v), del: async k => kv.delete(k) },
     fetch: fetchFn, now: () => t, sleep: async ms => { t += ms; }
   });
-  return { st, kv, calls, script, advance: ms => { t += ms; }, counts: () => ({ uploads, polls }) };
+  return { st, kv, calls, script, sent, advance: ms => { t += ms; }, counts: () => ({ uploads, polls }) };
 }
 async function connected(script) {
   const fs = fakeStrava(script);
@@ -400,6 +401,12 @@ atest("upload: posts, polls, marks it a virtual ride, links the activity", async
   const r = await fs.st.upload(RIDE, "<?xml?>", { onUploadId: id => ids.push(id) });
   assert.deepEqual(r, { status: "uploaded", activityId: "5550001", virtual: true, duplicate: false });
   assert.deepEqual(ids, ["99"]); assert.ok(fs.calls.includes("PUT /api/activities/5550001"));
+  assert.equal(fs.sent.trainer, "1"); assert.deepEqual(fs.sent.put, { sport_type: "VirtualRide", trainer: true });
+});
+atest("upload: a ride with map positions isn't marked as on a trainer, so Strava shows its map", async () => {
+  const fs = await connected();
+  await fs.st.upload(RIDE, "<?xml?><Trackpoint><Position><LatitudeDegrees>1</LatitudeDegrees></Position></Trackpoint>");
+  assert.equal(fs.sent.trainer, null); assert.deepEqual(fs.sent.put, { sport_type: "VirtualRide" });
 });
 atest("upload: tokens refresh without prompting when near expiry", async () => {
   const fs = await connected();

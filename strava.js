@@ -127,12 +127,14 @@ function createStrava(o) {
   async function upload(ride, tcxText, cb = {}) {
     const progress = cb.onProgress || (() => {});
     let uploadId = ride.upload && ride.upload.status === "processing" ? ride.upload.uploadId : null, activityId = null;
+    // Strava hides the map of a ride marked as on a trainer, so the flag is only for rides without one.
+    const hasMap = /<Position>/.test(tcxText);
     if (!uploadId) {
       progress("Sending to Strava…");
       const form = new FormData();
       form.append("file", new Blob([tcxText], { type: "application/vnd.garmin.tcx+xml" }), "ride.tcx");
       form.append("data_type", "tcx");
-      form.append("trainer", "1");
+      if (!hasMap) form.append("trainer", "1");
       form.append("name", "Trail at Home: " + (ride.routeName || "ride"));
       form.append("description", "Virtual ride on a Bowflex VeloCore, recorded with Trail at Home.");
       form.append("external_id", "trailathome-" + ride.id);
@@ -167,7 +169,7 @@ function createStrava(o) {
     // Uploads can't say "virtual ride", so set the type afterwards.
     progress("Marking it as a virtual ride…");
     let virtual = true;
-    try { await api("PUT", "/activities/" + encodeURIComponent(activityId), { sport_type: "VirtualRide", trainer: true }); }
+    try { await api("PUT", "/activities/" + encodeURIComponent(activityId), hasMap ? { sport_type: "VirtualRide" } : { sport_type: "VirtualRide", trainer: true }); }
     catch (e) { virtual = false; }                       // the ride is on Strava either way; only its type didn't change
     return uploaded(activityId, virtual, false);
   }
